@@ -1,0 +1,158 @@
+screenshot,origin_city,dest_search,depart_date,return_date,nonstop_filter,search_lowest_price_brl,rank_group,depart_time,arrive_time,next_day_arrival,airline,ticket_type,duration,stops,stop_detail,route,origin_airport,dest_airport,co2_kg,co2_note,price_brl
+131822,Sao Paulo,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-25 (seg),No,1380,Principais,16:45,19:50,No,Azul,Normal,3h05,Sem escalas,,CGH-REC,CGH,REC,204,Media de emissoes,1380
+131822,Sao Paulo,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-25 (seg),No,1380,Principais,22:15,01:20,Yes,Azul,Normal,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1380
+131822,Sao Paulo,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-25 (seg),No,1380,Principais,21:55,01:05,Yes,GOL,Passagens separadas,3h10,Sem escalas,,CGH-REC,CGH,REC,152,24% menos emissoes,1620
+131822,Sao Paulo,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-25 (seg),No,1380,Principais,20:05,23:20,No,LATAM,Normal,3h15,Sem escalas,,CGH-JPA,CGH,JPA,183,9% menos emissoes,1717
+131822,Sao Paulo,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-25 (seg),No,1380,Outros,12:40,15:45,No,Azul,Normal,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1539
+131822,Sao Paulo,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-25 (seg),No,1380,Outros,17:45,11:40,Yes,LATAM,Passagens separadas,17h55,1 parada,13h45 min BSB,VCP-REC,VCP,REC,229,14% mais emissoes,1572
+131822,Sao Paulo,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-25 (seg),No,1380,Outros,05:00,08:00,No,Azul,Normal,3h00,Sem escalas,,GRU-REC,GRU,REC,152,24% menos emissoes,1582
+131822,Sao Paulo,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-25 (seg),No,1380,Outros,16:40,19:40,No,Azul,Normal,3h00,Sem escalas,,GRU-REC,GRU,REC,152,24% menos emissoes,1582
+131929,Rio de Janeiro,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-25 (seg),Yes,1824,Principais,11:05,13:55,No,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,136,30% menos emissoes,1824
+131929,Rio de Janeiro,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-25 (seg),Yes,1824,Principais,13:15,16:05,No,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,1848
+131929,Rio de Janeiro,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-25 (seg),Yes,1824,Principais,14:45,17:35,No,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,1848
+131929,Rio de Janeiro,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-25 (seg),Yes,1824,Principais,19:05,21:50,No,Azul,Passagens separadas,2h45,Sem escalas,,GIG-REC,GIG,REC,143,27% menos emissoes,1987
+131929,Rio de Janeiro,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-25 (seg),Yes,1824,Principais,21:20,00:10,Yes,GOL,Normal,2h50,Sem escalas,,GIG-JPA,GIG,JPA,166,15% menos emissoes,1999
+131929,Rio de Janeiro,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-25 (seg),Yes,1824,Outros,07:50,10:40,No,GOL,Normal,2h50,Sem escalas,,GIG-JPA,GIG,JPA,166,15% menos emissoes,2331
+131929,Rio de Janeiro,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-25 (seg),Yes,1824,Outros,13:05,15:55,No,GOL,Normal,2h50,Sem escalas,,GIG-JPA,GIG,JPA,166,15% menos emissoes,2331
+131929,Rio de Janeiro,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-25 (seg),Yes,1824,Outros,16:20,19:05,No,Azul,Passagens separadas,2h45,Sem escalas,,GIG-REC,GIG,REC,143,27% menos emissoes,2340
+131929,Rio de Janeiro,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-25 (seg),Yes,1824,Outros,21:20,00:10,Yes,GOL,Normal,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,2469
+131946,Sao Paulo,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-26 (ter),Yes,1439,Principais,16:45,19:50,No,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,204,Media de emissoes,1439
+131946,Sao Paulo,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-26 (ter),Yes,1439,Principais,22:15,01:20,Yes,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1439
+131946,Sao Paulo,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-26 (ter),Yes,1439,Principais,20:05,23:20,No,LATAM,Normal,3h15,Sem escalas,,CGH-JPA,CGH,JPA,183,9% menos emissoes,1717
+131946,Sao Paulo,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-26 (ter),Yes,1439,Principais,21:55,01:05,Yes,GOL,Passagens separadas,3h10,Sem escalas,,CGH-REC,CGH,REC,152,24% menos emissoes,1722
+131946,Sao Paulo,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-26 (ter),Yes,1439,Outros,12:40,15:45,No,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1606
+131946,Sao Paulo,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-26 (ter),Yes,1439,Outros,17:35,20:40,No,LATAM,Normal,3h05,Sem escalas,,GRU-REC,GRU,REC,174,13% menos emissoes,1622
+131946,Sao Paulo,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-26 (ter),Yes,1439,Outros,05:00,08:00,No,Azul,Passagens separadas,3h00,Sem escalas,,GRU-REC,GRU,REC,152,24% menos emissoes,1668
+131946,Sao Paulo,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-26 (ter),Yes,1439,Outros,16:40,19:40,No,Azul,Passagens separadas,3h00,Sem escalas,,GRU-REC,GRU,REC,152,24% menos emissoes,1668
+131946,Sao Paulo,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-26 (ter),Yes,1439,Outros,23:00,02:00,Yes,Azul,Passagens separadas,3h00,Sem escalas,,GRU-REC,GRU,REC,152,24% menos emissoes,1668
+132004,Rio de Janeiro,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-26 (ter),Yes,1848,Principais,11:05,13:55,No,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,136,30% menos emissoes,1848
+132004,Rio de Janeiro,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-26 (ter),Yes,1848,Principais,13:15,16:05,No,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,1872
+132004,Rio de Janeiro,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-26 (ter),Yes,1848,Principais,14:45,17:35,No,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,1872
+132004,Rio de Janeiro,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-26 (ter),Yes,1848,Principais,21:20,00:10,Yes,GOL,Normal,2h50,Sem escalas,,GIG-JPA,GIG,JPA,166,15% menos emissoes,2020
+132004,Rio de Janeiro,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-26 (ter),Yes,1848,Outros,19:05,21:50,No,Azul,Passagens separadas,2h45,Sem escalas,,GIG-REC,GIG,REC,143,27% menos emissoes,2220
+132004,Rio de Janeiro,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-26 (ter),Yes,1848,Outros,07:50,10:40,No,GOL,Normal,2h50,Sem escalas,,GIG-JPA,GIG,JPA,166,15% menos emissoes,2352
+132004,Rio de Janeiro,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-26 (ter),Yes,1848,Outros,13:05,15:55,No,GOL,Normal,2h50,Sem escalas,,GIG-JPA,GIG,JPA,166,15% menos emissoes,2352
+132004,Rio de Janeiro,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-26 (ter),Yes,1848,Outros,16:20,19:05,No,Azul,Passagens separadas,2h45,Sem escalas,,GIG-REC,GIG,REC,143,27% menos emissoes,2364
+132043,Sao Paulo,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-27 (qua),Yes,1439,Principais,16:45,19:50,No,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,204,Media de emissoes,1439
+132043,Sao Paulo,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-27 (qua),Yes,1439,Principais,22:15,01:20,Yes,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1439
+132043,Sao Paulo,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-27 (qua),Yes,1439,Principais,20:05,23:20,No,LATAM,Normal,3h15,Sem escalas,,CGH-JPA,CGH,JPA,183,9% menos emissoes,1717
+132043,Sao Paulo,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-27 (qua),Yes,1439,Principais,21:55,01:05,Yes,GOL,Passagens separadas,3h10,Sem escalas,,CGH-REC,CGH,REC,152,24% menos emissoes,1740
+132043,Sao Paulo,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-27 (qua),Yes,1439,Outros,12:40,15:45,No,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1606
+132043,Sao Paulo,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-27 (qua),Yes,1439,Outros,05:00,08:00,No,Azul,Normal,3h00,Sem escalas,,GRU-REC,GRU,REC,152,24% menos emissoes,1614
+132043,Sao Paulo,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-27 (qua),Yes,1439,Outros,16:40,19:40,No,Azul,Normal,3h00,Sem escalas,,GRU-REC,GRU,REC,152,24% menos emissoes,1614
+132043,Sao Paulo,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-27 (qua),Yes,1439,Outros,23:00,02:00,Yes,Azul,Normal,3h00,Sem escalas,,GRU-REC,GRU,REC,152,24% menos emissoes,1614
+132043,Sao Paulo,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-27 (qua),Yes,1439,Outros,17:35,20:40,No,LATAM,Normal,3h05,Sem escalas,,GRU-REC,GRU,REC,174,13% menos emissoes,1668
+132058,Rio de Janeiro,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-27 (qua),Yes,1848,Principais,11:05,13:55,No,GOL,Normal,2h50,Sem escalas,,GIG-REC,GIG,REC,136,30% menos emissoes,1848
+132058,Rio de Janeiro,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-27 (qua),Yes,1848,Principais,13:15,16:05,No,GOL,Normal,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,1872
+132058,Rio de Janeiro,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-27 (qua),Yes,1848,Principais,14:45,17:35,No,GOL,Normal,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,1872
+132058,Rio de Janeiro,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-27 (qua),Yes,1848,Principais,21:20,00:10,Yes,GOL,Normal,2h50,Sem escalas,,GIG-JPA,GIG,JPA,166,15% menos emissoes,2020
+132058,Rio de Janeiro,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-27 (qua),Yes,1848,Outros,19:05,21:50,No,Azul,Passagens separadas,2h45,Sem escalas,,GIG-REC,GIG,REC,143,27% menos emissoes,2220
+132058,Rio de Janeiro,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-27 (qua),Yes,1848,Outros,07:50,10:40,No,GOL,Normal,2h50,Sem escalas,,GIG-JPA,GIG,JPA,166,15% menos emissoes,2352
+132058,Rio de Janeiro,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-27 (qua),Yes,1848,Outros,13:05,15:55,No,GOL,Normal,2h50,Sem escalas,,GIG-JPA,GIG,JPA,166,15% menos emissoes,2352
+132058,Rio de Janeiro,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-27 (qua),Yes,1848,Outros,16:20,19:05,No,Azul,Passagens separadas,2h45,Sem escalas,,GIG-REC,GIG,REC,143,27% menos emissoes,2364
+132058,Rio de Janeiro,Recife / Joao Pessoa,2027-01-18 (seg),2027-01-27 (qua),Yes,1848,Outros,21:20,00:10,Yes,GOL,Normal,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,2490
+132135,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-26 (ter),Yes,1439,Principais,12:40,15:45,No,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1439
+132135,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-26 (ter),Yes,1439,Principais,22:15,01:20,Yes,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1439
+132135,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-26 (ter),Yes,1439,Principais,20:05,23:20,No,LATAM,Normal,3h15,Sem escalas,,CGH-JPA,CGH,JPA,183,9% menos emissoes,1717
+132135,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-26 (ter),Yes,1439,Principais,21:55,01:05,Yes,GOL,Passagens separadas,3h10,Sem escalas,,CGH-REC,CGH,REC,152,24% menos emissoes,1734
+132135,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-26 (ter),Yes,1439,Outros,16:45,19:50,No,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,204,Media de emissoes,1439
+132135,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-26 (ter),Yes,1439,Outros,17:30,20:35,No,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1439
+132135,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-26 (ter),Yes,1439,Outros,05:00,08:00,No,Azul,Normal,3h00,Sem escalas,,GRU-REC,GRU,REC,152,24% menos emissoes,1626
+132135,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-26 (ter),Yes,1439,Outros,08:30,11:30,No,Azul,Normal,3h00,Sem escalas,,GRU-REC,GRU,REC,152,24% menos emissoes,1626
+132135,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-26 (ter),Yes,1439,Outros,10:10,13:20,No,Azul,Normal,3h10,Sem escalas,,GRU-REC,GRU,REC,200,Media de emissoes,1626
+132146,Rio de Janeiro,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-26 (ter),Yes,1848,Principais,11:05,13:55,No,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,136,30% menos emissoes,1848
+132146,Rio de Janeiro,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-26 (ter),Yes,1848,Principais,13:05,15:55,No,GOL,Normal,2h50,Sem escalas,,GIG-JPA,GIG,JPA,166,15% menos emissoes,2020
+132146,Rio de Janeiro,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-26 (ter),Yes,1848,Principais,21:20,00:10,Yes,GOL,Normal,2h50,Sem escalas,,GIG-JPA,GIG,JPA,166,15% menos emissoes,2020
+132146,Rio de Janeiro,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-26 (ter),Yes,1848,Outros,13:15,16:05,No,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,1872
+132146,Rio de Janeiro,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-26 (ter),Yes,1848,Outros,14:45,17:35,No,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,1872
+132146,Rio de Janeiro,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-26 (ter),Yes,1848,Outros,21:20,00:10,Yes,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,1872
+132146,Rio de Janeiro,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-26 (ter),Yes,1848,Outros,09:00,11:50,No,GOL,Normal,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,2105
+132146,Rio de Janeiro,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-26 (ter),Yes,1848,Outros,19:05,21:50,No,Azul,Passagens separadas,2h45,Sem escalas,,GIG-REC,GIG,REC,143,27% menos emissoes,2184
+132146,Rio de Janeiro,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-26 (ter),Yes,1848,Outros,22:40,01:35,Yes,LATAM,Passagens separadas,2h55,Sem escalas,,GIG-JPA,GIG,JPA,164,16% menos emissoes,2294
+132215,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-27 (qua),Yes,1439,Principais,12:40,15:45,No,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1439
+132215,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-27 (qua),Yes,1439,Principais,22:15,01:20,Yes,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1439
+132215,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-27 (qua),Yes,1439,Principais,20:05,23:20,No,LATAM,Normal,3h15,Sem escalas,,CGH-JPA,CGH,JPA,183,9% menos emissoes,1717
+132215,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-27 (qua),Yes,1439,Principais,21:55,01:05,Yes,GOL,Passagens separadas,3h10,Sem escalas,,CGH-REC,CGH,REC,152,24% menos emissoes,1740
+132215,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-27 (qua),Yes,1439,Outros,16:45,19:50,No,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,204,Media de emissoes,1439
+132215,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-27 (qua),Yes,1439,Outros,17:30,20:35,No,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1439
+132215,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-27 (qua),Yes,1439,Outros,05:00,08:00,No,Azul,Normal,3h00,Sem escalas,,GRU-REC,GRU,REC,152,24% menos emissoes,1614
+132215,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-27 (qua),Yes,1439,Outros,08:30,11:30,No,Azul,Normal,3h00,Sem escalas,,GRU-REC,GRU,REC,152,24% menos emissoes,1614
+132215,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-27 (qua),Yes,1439,Outros,10:10,13:20,No,Azul,Normal,3h10,Sem escalas,,GRU-REC,GRU,REC,200,Media de emissoes,1614
+132226,Rio de Janeiro,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-27 (qua),Yes,1848,Principais,11:05,13:55,No,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,136,30% menos emissoes,1848
+132226,Rio de Janeiro,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-27 (qua),Yes,1848,Principais,13:05,15:55,No,GOL,Normal,2h50,Sem escalas,,GIG-JPA,GIG,JPA,166,15% menos emissoes,2020
+132226,Rio de Janeiro,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-27 (qua),Yes,1848,Principais,21:20,00:10,Yes,GOL,Normal,2h50,Sem escalas,,GIG-JPA,GIG,JPA,166,15% menos emissoes,2020
+132226,Rio de Janeiro,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-27 (qua),Yes,1848,Outros,13:15,16:05,No,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,1872
+132226,Rio de Janeiro,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-27 (qua),Yes,1848,Outros,14:45,17:35,No,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,1872
+132226,Rio de Janeiro,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-27 (qua),Yes,1848,Outros,21:20,00:10,Yes,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,1872
+132226,Rio de Janeiro,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-27 (qua),Yes,1848,Outros,09:00,11:50,No,GOL,Normal,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,2105
+132226,Rio de Janeiro,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-27 (qua),Yes,1848,Outros,19:05,21:50,No,Azul,Passagens separadas,2h45,Sem escalas,,GIG-REC,GIG,REC,143,27% menos emissoes,2184
+132308,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-28 (qui),Yes,1439,Principais,12:40,15:45,No,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1439
+132308,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-28 (qui),Yes,1439,Principais,22:15,01:20,Yes,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1439
+132308,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-28 (qui),Yes,1439,Principais,20:05,23:20,No,LATAM,Normal,3h15,Sem escalas,,CGH-JPA,CGH,JPA,183,9% menos emissoes,1717
+132308,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-28 (qui),Yes,1439,Outros,16:45,19:50,No,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,204,Media de emissoes,1439
+132308,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-28 (qui),Yes,1439,Outros,17:30,20:35,No,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1439
+132308,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-28 (qui),Yes,1439,Outros,20:10,23:15,No,LATAM,Normal,3h05,Sem escalas,,CGH-REC,CGH,REC,177,12% menos emissoes,1657
+132308,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-28 (qui),Yes,1439,Outros,21:00,00:05,Yes,LATAM,Normal,3h05,Sem escalas,,GRU-REC,GRU,REC,174,13% menos emissoes,1668
+132308,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-28 (qui),Yes,1439,Outros,05:00,08:00,No,Azul,Passagens separadas,3h00,Sem escalas,,GRU-REC,GRU,REC,152,24% menos emissoes,1702
+132308,Sao Paulo,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-28 (qui),Yes,1439,Outros,08:30,11:30,No,Azul,Passagens separadas,3h00,Sem escalas,,GRU-REC,GRU,REC,152,24% menos emissoes,1702
+132319,Rio de Janeiro,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-28 (qui),Yes,1848,Principais,11:05,13:55,No,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,136,30% menos emissoes,1848
+132319,Rio de Janeiro,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-28 (qui),Yes,1848,Principais,13:05,15:55,No,GOL,Normal,2h50,Sem escalas,,GIG-JPA,GIG,JPA,166,15% menos emissoes,2020
+132319,Rio de Janeiro,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-28 (qui),Yes,1848,Principais,21:20,00:10,Yes,GOL,Normal,2h50,Sem escalas,,GIG-JPA,GIG,JPA,166,15% menos emissoes,2020
+132319,Rio de Janeiro,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-28 (qui),Yes,1848,Outros,13:15,16:05,No,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,1872
+132319,Rio de Janeiro,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-28 (qui),Yes,1848,Outros,14:45,17:35,No,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,1872
+132319,Rio de Janeiro,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-28 (qui),Yes,1848,Outros,21:20,00:10,Yes,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,1872
+132319,Rio de Janeiro,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-28 (qui),Yes,1848,Outros,19:05,21:50,No,Azul,Normal,2h45,Sem escalas,,GIG-REC,GIG,REC,143,27% menos emissoes,2021
+132319,Rio de Janeiro,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-28 (qui),Yes,1848,Outros,09:00,11:50,No,GOL,Normal,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,2105
+132319,Rio de Janeiro,Recife / Joao Pessoa,2027-01-19 (ter),2027-01-28 (qui),Yes,1848,Outros,07:50,10:40,No,GOL,Normal,2h50,Sem escalas,,GIG-JPA,GIG,JPA,166,15% menos emissoes,2352
+132400,Sao Paulo,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-27 (qua),Yes,1438,Principais,22:15,01:20,Yes,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1438
+132400,Sao Paulo,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-27 (qua),Yes,1438,Principais,20:05,23:20,No,LATAM,Normal,3h15,Sem escalas,,CGH-JPA,CGH,JPA,183,9% menos emissoes,1717
+132400,Sao Paulo,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-27 (qua),Yes,1438,Principais,21:55,01:05,Yes,GOL,Passagens separadas,3h10,Sem escalas,,CGH-REC,CGH,REC,152,24% menos emissoes,1740
+132400,Sao Paulo,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-27 (qua),Yes,1438,Outros,16:45,19:50,No,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,204,Media de emissoes,1438
+132400,Sao Paulo,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-27 (qua),Yes,1438,Outros,17:30,20:35,No,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1438
+132400,Sao Paulo,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-27 (qua),Yes,1438,Outros,08:35,11:40,No,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1487
+132400,Sao Paulo,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-27 (qua),Yes,1438,Outros,12:40,15:45,No,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1487
+132400,Sao Paulo,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-27 (qua),Yes,1438,Outros,08:30,11:30,No,Azul,Normal,3h00,Sem escalas,,GRU-REC,GRU,REC,152,24% menos emissoes,1652
+132400,Sao Paulo,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-27 (qua),Yes,1438,Outros,10:10,13:20,No,Azul,Normal,3h10,Sem escalas,,GRU-REC,GRU,REC,200,Media de emissoes,1652
+132411,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-27 (qua),Yes,1758,Principais,21:20,00:10,Yes,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,1758
+132411,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-27 (qua),Yes,1758,Principais,11:05,13:55,No,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,136,30% menos emissoes,1860
+132411,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-27 (qua),Yes,1758,Principais,13:15,16:05,No,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,1860
+132411,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-27 (qua),Yes,1758,Principais,13:05,15:55,No,GOL,Normal,2h50,Sem escalas,,GIG-JPA,GIG,JPA,166,15% menos emissoes,2020
+132411,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-27 (qua),Yes,1758,Principais,21:20,00:10,Yes,GOL,Normal,2h50,Sem escalas,,GIG-JPA,GIG,JPA,166,15% menos emissoes,2020
+132411,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-27 (qua),Yes,1758,Outros,14:45,17:35,No,GOL,Normal,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,1979
+132411,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-27 (qua),Yes,1758,Outros,15:45,18:30,No,Azul,Passagens separadas,2h45,Sem escalas,,GIG-REC,GIG,REC,143,27% menos emissoes,2184
+132411,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-27 (qua),Yes,1758,Outros,19:05,21:50,No,Azul,Passagens separadas,2h45,Sem escalas,,GIG-REC,GIG,REC,143,27% menos emissoes,2184
+132411,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-27 (qua),Yes,1758,Outros,07:50,10:40,No,GOL,Normal,2h50,Sem escalas,,GIG-JPA,GIG,JPA,166,15% menos emissoes,2203
+132429,Sao Paulo,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-28 (qui),Yes,1438,Principais,16:45,19:50,No,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,204,Media de emissoes,1438
+132429,Sao Paulo,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-28 (qui),Yes,1438,Principais,22:15,01:20,Yes,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1438
+132429,Sao Paulo,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-28 (qui),Yes,1438,Principais,20:05,23:20,No,LATAM,Normal,3h15,Sem escalas,,CGH-JPA,CGH,JPA,183,9% menos emissoes,1717
+132429,Sao Paulo,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-28 (qui),Yes,1438,Outros,17:30,20:35,No,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1438
+132429,Sao Paulo,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-28 (qui),Yes,1438,Outros,08:35,11:40,No,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1487
+132429,Sao Paulo,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-28 (qui),Yes,1438,Outros,12:40,15:45,No,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1487
+132429,Sao Paulo,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-28 (qui),Yes,1438,Outros,07:20,10:30,No,LATAM,Normal,3h10,Sem escalas,,CGH-REC,CGH,REC,177,12% menos emissoes,1689
+132429,Sao Paulo,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-28 (qui),Yes,1438,Outros,20:10,23:15,No,LATAM,Normal,3h05,Sem escalas,,CGH-REC,CGH,REC,177,12% menos emissoes,1689
+132435,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-28 (qui),Yes,1758,Principais,21:20,00:10,Yes,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,1758
+132435,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-28 (qui),Yes,1758,Principais,13:05,15:55,No,GOL,Normal,2h50,Sem escalas,,GIG-JPA,GIG,JPA,166,15% menos emissoes,2020
+132435,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-28 (qui),Yes,1758,Principais,21:20,00:10,Yes,GOL,Normal,2h50,Sem escalas,,GIG-JPA,GIG,JPA,166,15% menos emissoes,2020
+132435,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-28 (qui),Yes,1758,Outros,11:05,13:55,No,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,136,30% menos emissoes,1860
+132435,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-28 (qui),Yes,1758,Outros,13:15,16:05,No,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,1860
+132435,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-28 (qui),Yes,1758,Outros,14:45,17:35,No,GOL,Normal,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,1979
+132435,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-28 (qui),Yes,1758,Outros,15:45,18:30,No,Azul,Normal,2h45,Sem escalas,,GIG-REC,GIG,REC,143,27% menos emissoes,1998
+132435,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-28 (qui),Yes,1758,Outros,19:05,21:50,No,Azul,Normal,2h45,Sem escalas,,GIG-REC,GIG,REC,143,27% menos emissoes,1998
+132435,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-28 (qui),Yes,1758,Outros,07:50,10:40,No,GOL,Normal,2h50,Sem escalas,,GIG-JPA,GIG,JPA,166,15% menos emissoes,2203
+132503,Sao Paulo,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-29 (sex),Yes,1438,Principais,16:45,19:50,No,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,204,Media de emissoes,1438
+132503,Sao Paulo,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-29 (sex),Yes,1438,Principais,22:15,01:20,Yes,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1438
+132503,Sao Paulo,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-29 (sex),Yes,1438,Principais,20:05,23:20,No,LATAM,Normal,3h15,Sem escalas,,CGH-JPA,CGH,JPA,183,9% menos emissoes,1717
+132503,Sao Paulo,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-29 (sex),Yes,1438,Outros,17:30,20:35,No,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1438
+132503,Sao Paulo,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-29 (sex),Yes,1438,Outros,08:35,11:40,No,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1487
+132503,Sao Paulo,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-29 (sex),Yes,1438,Outros,12:40,15:45,No,Azul,Passagens separadas,3h05,Sem escalas,,CGH-REC,CGH,REC,160,20% menos emissoes,1487
+132503,Sao Paulo,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-29 (sex),Yes,1438,Outros,08:30,11:30,No,Azul,Normal,3h00,Sem escalas,,GRU-REC,GRU,REC,152,24% menos emissoes,1652
+132503,Sao Paulo,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-29 (sex),Yes,1438,Outros,10:10,13:20,No,Azul,Normal,3h10,Sem escalas,,GRU-REC,GRU,REC,200,Media de emissoes,1652
+132511,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-29 (sex),Yes,1740,Principais,21:20,00:10,Yes,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,1740
+132511,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-29 (sex),Yes,1740,Principais,21:20,00:10,Yes,GOL,Normal,2h50,Sem escalas,,GIG-JPA,GIG,JPA,166,15% menos emissoes,1935
+132511,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-29 (sex),Yes,1740,Principais,13:05,15:55,No,GOL,Passagens separadas,2h50,Sem escalas,,GIG-JPA,GIG,JPA,166,15% menos emissoes,1996
+132511,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-29 (sex),Yes,1740,Outros,11:05,13:55,No,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,136,30% menos emissoes,1842
+132511,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-29 (sex),Yes,1740,Outros,13:15,16:05,No,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,1842
+132511,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-29 (sex),Yes,1740,Outros,14:45,17:35,No,GOL,Passagens separadas,2h50,Sem escalas,,GIG-REC,GIG,REC,160,18% menos emissoes,1956
+132511,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-29 (sex),Yes,1740,Outros,15:45,18:30,No,Azul,Normal,2h45,Sem escalas,,GIG-REC,GIG,REC,143,27% menos emissoes,2016
+132511,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-29 (sex),Yes,1740,Outros,19:05,21:50,No,Azul,Normal,2h45,Sem escalas,,GIG-REC,GIG,REC,143,27% menos emissoes,2016
+132511,Rio de Janeiro,Recife / Joao Pessoa,2027-01-20 (qua),2027-01-29 (sex),Yes,1740,Outros,07:50,10:40,No,GOL,Normal,2h50,Sem escalas,,GIG-JPA,GIG,JPA,166,15% menos emissoes,2182
