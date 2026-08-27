@@ -170,6 +170,38 @@ class TestCaveatsBackfillReason(unittest.TestCase):
         self.assertIn("No origin needed a backfill search", item)
 
 
+class TestCoverageHeading(unittest.TestCase):
+    """The coverage heading must match its body: neutral when all origins are
+    determined, and "not determined" only when some are not.
+    """
+
+    def test_coverage_heading_is_neutral_when_all_origins_covered(self):
+        trips = [{"origin": "BER", "price_basis": "sweep"}]
+        params = {"origins": [{"code": "BER"}]}
+        html = _caveats_section(trips, params, ["BER"], {"BER": "ok"})
+        self.assertIn("<h3>Coverage</h3>", html)
+        self.assertIn("Every origin returned a usable result page", html)
+        self.assertNotIn("Coverage not determined", html)
+
+    def test_coverage_heading_names_condition_when_not_all_origins_determined(self):
+        trips = [{"origin": "BER", "price_basis": "sweep"}]
+        params = {"origins": [{"code": "BER"}]}
+        html = _caveats_section(trips, params, ["BER"], {"BER": "not_determined"})
+        self.assertIn("<h3>Coverage not determined</h3>", html)
+        self.assertIn("BER did not come back with a usable result page", html)
+        # The heading must not contradict by also saying coverage is fine.
+        self.assertNotIn("<h3>Coverage</h3>", html)
+
+    def test_coverage_lists_multiple_undetermined_origins(self):
+        trips = [{"origin": "BER", "price_basis": "sweep"},
+                 {"origin": "FRA", "price_basis": "sweep"}]
+        params = {"origins": [{"code": "BER"}, {"code": "FRA"}]}
+        html = _caveats_section(trips, params, ["BER", "FRA"],
+                               {"BER": "not_determined", "FRA": "not_determined"})
+        self.assertIn("BER, FRA did not come back", html)
+        self.assertIn("them", html)  # plural form
+
+
 class TestRender(unittest.TestCase):
     def setUp(self):
         self.html = render(TRIPS, PARAMS, COVERAGE)

@@ -756,14 +756,16 @@ def _caveats_section(trips, params, origins, coverage):
     items.append(
         f"<li><h3>Origins backfilled</h3><p>{esc(backfill_body)}</p></li>")
     them = "it" if len(undetermined) == 1 else "them"
+    if undetermined:
+        heading = "Coverage not determined"
+        body = (esc(", ".join(undetermined)) + " did not come back with a usable "
+               f"result page, so the board says nothing about {them}. Those cells "
+               "are unmeasured, not expensive.")
+    else:
+        heading = "Coverage"
+        body = "Every origin returned a usable result page."
     items.append(
-        "<li><h3>Coverage not determined</h3><p>"
-        + (esc(", ".join(undetermined)) + " did not come back with a usable "
-           f"result page, so the board says nothing about {them}. Those cells "
-           "are unmeasured, not expensive."
-           if undetermined else
-           "Every origin returned a usable result page.")
-        + "</p></li>")
+        f"<li><h3>{heading}</h3><p>{body}</p></li>")
     if unexpanded:
         listed = ", ".join(
             f'{t.get("origin") or "?"} {t.get("price_eur")}'
