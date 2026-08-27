@@ -118,3 +118,36 @@ class TestMerge(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestIngestPageText(unittest.TestCase):
+    PAGE = (pathlib.Path(__file__).parent / "fixtures"
+            / "page_text_round_trip.txt").read_text()
+
+    def capture(self, **over):
+        cap = {"url": CAPTURE["url"], "sortedBy": "Sorted by price",
+               "activeTab": "Cheapest", "pageText": self.PAGE}
+        cap.update(over)
+        return cap
+
+    def test_page_text_becomes_records_tagged_with_their_search(self):
+        from scripts.ingest import ingest_page_text
+        got = ingest_page_text(self.capture(), SEARCH)
+        self.assertEqual(len(got), 5)
+        self.assertEqual(got[0]["price_eur"], 1047)
+        self.assertEqual(got[0]["search_id"], SEARCH["id"])
+        self.assertEqual(got[0]["price_basis"], "sweep")
+
+    def test_best_tab_page_text_refuses_to_ingest(self):
+        from scripts.ingest import ingest_page_text
+        with self.assertRaises(ResultSetError):
+            ingest_page_text(self.capture(activeTab="Best"), SEARCH)
+
+    def test_page_text_with_no_rows_raises(self):
+        from scripts.ingest import ingest_page_text
+        with self.assertRaises(ValueError):
+            ingest_page_text(self.capture(pageText="Sorted by price\n"), SEARCH)
+
+    def test_merge_routes_page_text_captures_to_the_text_parser(self):
+        got = merge_captures([self.capture()], [SEARCH])
+        self.assertEqual(len(got), 5)

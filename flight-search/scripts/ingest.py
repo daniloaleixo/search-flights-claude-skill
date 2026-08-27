@@ -15,6 +15,7 @@ both failure modes are invisible in the output they corrupt:
 """
 
 from scripts.parse import ParseError, parse_row
+from scripts.parse_text import parse_page_text
 
 PRICE_SORTED = "Sorted by price"
 CHEAPEST_TAB = "Cheapest"
@@ -81,8 +82,38 @@ def ingest_capture(capture, search, strict=True):
     return records
 
 
+def ingest_page_text(capture, search, strict=True):
+    """Ingest a capture whose payload is the page's visible text.
+
+    The tab and sort assertions still run: they read the two fields the
+    browser probe returns alongside the text, because the text alone cannot
+    say which tab is selected.
+    """
+    assert_cheapest_tab(capture)
+    assert_price_sorted(capture)
+    records = parse_page_text(capture["pageText"], search["dep_date"], strict)
+    if not records:
+        raise ValueError(
+            f"page loaded with zero result rows: {capture.get('url', '')[:90]}"
+        )
+    for record in records:
+        record.update({
+            "search_id": search["id"],
+            "tfs_url": capture["url"],
+            "dep_date_searched": search["dep_date"],
+            "ret_date": search["ret_date"],
+            "max_stops": search["max_stops"],
+            "price_basis": _price_basis(search),
+            "legs_expanded": False,
+            "night_layover": None,
+            "ret_airport": None,
+        })
+    return records
+
+
 def merge_captures(captures, searches):
     out = []
     for capture, search in zip(captures, searches):
-        out.extend(ingest_capture(capture, search))
+        ingest = ingest_page_text if "pageText" in capture else ingest_capture
+        out.extend(ingest(capture, search))
     return out
