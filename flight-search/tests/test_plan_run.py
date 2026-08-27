@@ -2,8 +2,9 @@ import json
 import unittest
 from scripts.plan_run import (
     date_pairs, sweep_searches, backfill_searches, stop_budget,
-    origins_needing_backfill,
+    origins_needing_backfill, return_airports, _seat,
 )
+from scripts.tfs import SEAT_ECONOMY
 
 PARAMS = {
     "dest": "GRU",
@@ -98,6 +99,62 @@ class TestOriginsNeedingBackfill(unittest.TestCase):
                 {"origin": "AMS"}, {"origin": "HAM"}]
         result = origins_needing_backfill(PARAMS, rows)
         self.assertEqual(result.count("BER"), 1)
+
+
+class TestReturnAirportsBareString(unittest.TestCase):
+    def test_bare_string_wraps_to_single_element_list(self):
+        params = dict(PARAMS, return_airports="BER")
+        self.assertEqual(return_airports(params), ["BER"])
+
+    def test_bare_string_does_not_splat_into_characters(self):
+        params = dict(PARAMS, return_airports="BER")
+        result = return_airports(params)
+        self.assertNotIn("B", result)
+        self.assertNotIn("E", result)
+
+
+class TestCabinSeat(unittest.TestCase):
+    def test_economy_maps_to_seat_economy(self):
+        self.assertEqual(_seat(PARAMS), SEAT_ECONOMY)
+
+    def test_default_cabin_is_economy(self):
+        params = dict(PARAMS)
+        params.pop("cabin", None)
+        self.assertEqual(_seat(params), SEAT_ECONOMY)
+
+    def test_unrecognised_cabin_raises(self):
+        params = dict(PARAMS, cabin="business")
+        with self.assertRaises(ValueError):
+            _seat(params)
+
+
+class TestOpenJawFalse(unittest.TestCase):
+    def setUp(self):
+        self.params = dict(PARAMS, open_jaw=False)
+
+    def test_still_one_search_per_date_pair(self):
+        self.assertEqual(len(sweep_searches(self.params)), 20)
+
+    def test_trip_type_is_round_trip_not_multi_city(self):
+        for s in sweep_searches(self.params):
+            self.assertEqual(s["trip_type"], "round_trip")
+
+    def test_ret_airports_equals_the_origin_list(self):
+        origins = [o["code"] for o in self.params["origins"]]
+        for s in sweep_searches(self.params):
+            self.assertEqual(s["ret_airports"], origins)
+
+    def test_open_jaw_true_is_unchanged(self):
+        true_params = dict(PARAMS, open_jaw=True)
+        for s in sweep_searches(true_params):
+            self.assertEqual(s["trip_type"], "multi_city")
+            self.assertEqual(len(s["ret_airports"]), 6)
+
+    def test_open_jaw_absent_is_unchanged(self):
+        absent_params = {k: v for k, v in PARAMS.items() if k != "open_jaw"}
+        for s in sweep_searches(absent_params):
+            self.assertEqual(s["trip_type"], "multi_city")
+            self.assertEqual(len(s["ret_airports"]), 6)
 
 
 class TestBackfillSearches(unittest.TestCase):

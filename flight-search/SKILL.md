@@ -34,7 +34,10 @@ report "Sorted by price".
    `mcp__claude-in-chrome__javascript_tool`. Save each capture to
    `runs/<timestamp>/raw/<search_id>.json`.
 
-   Pace the navigations. A full run is 32 to 41 loads. A page that returns zero
+   Pace the navigations. The first real run (the Sao Paulo trip) took 43
+   captures: 20 sweep loads plus 23 backfill loads. The backfill count varies
+   with how many origins need it and how many stops each is allowed, so treat
+   43 as a measured data point, not a fixed budget. A page that returns zero
    rows is a blocked or restructured page, not an empty result: stop and say so
    rather than recording it.
 
@@ -51,10 +54,14 @@ report "Sorted by price".
 
 5. Expand the finalists. `expansion_targets` gives the batch; for each, click
    the row to reveal per-leg times, collect them, and compute layover windows
-   with `layover_windows` and `is_night_layover`. Keep expanding until twelve
-   are expanded and at least three have no night layover. If thirty expansions
-   pass without three clean trips, stop and report that: a field with no
-   comfortable option at any price is itself the finding.
+   with `layover_windows(legs, window=params.get("night_layover_window", ...))`.
+   Pass the params window through explicitly rather than relying on
+   `layover_windows`'s default, so a run that configured a different band
+   (`night_layover_window` in the params file) actually gets it applied.
+   Keep expanding until twelve are expanded and at least three have no night
+   layover. If thirty expansions pass without three clean trips, stop and
+   report that: a field with no comfortable option at any price is itself the
+   finding.
 
 6. Apply `apply_night_economics`, then build the page:
 
@@ -63,6 +70,16 @@ report "Sorted by price".
    (`build_board.py` reads `trips.json` and `params.json` from the run
    directory, plus `coverage.json` if present.) Publish the result with the
    Artifact tool.
+
+## Parameters that are declarative only
+
+`ticket` and `night_discount.mode` in the params file are not read by any
+script. `ticket` documents that every open jaw here is booked as one
+multi-city ticket, which is a design decision this skill always follows, not
+a switch. `night_discount.mode` documents that the "either" rule (clears the
+absolute floor or the percentage, whichever is easier) is the only rule
+implemented; `abs_eur` and `pct` are the two fields actually read. Both stay
+in the params file as documentation for the next reader, not as inputs.
 
 ## Constraints this skill enforces
 

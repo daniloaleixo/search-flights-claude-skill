@@ -14,8 +14,14 @@ DEFAULT_ABS_EUR = 150
 DEFAULT_PCT = 20
 
 
-def layover_windows(legs):
-    """Clock windows between consecutive legs, in local time at the stop."""
+def layover_windows(legs, window=(NIGHT_START, NIGHT_END)):
+    """Clock windows between consecutive legs, in local time at the stop.
+
+    `window` is the night band checked against each layover; it defaults to
+    23:00-06:00 but a caller holding `params["night_layover_window"]` should
+    pass it through here rather than relying on the default, so a run that
+    configured a different band actually gets it applied.
+    """
     out = []
     for first, second in zip(legs, legs[1:]):
         start = datetime.fromisoformat(first["arr_local"])
@@ -25,6 +31,8 @@ def layover_windows(legs):
             "start": first["arr_local"],
             "end": second["dep_local"],
             "minutes": int((end - start).total_seconds() // 60),
+            "night_flag": is_night_layover(
+                first["arr_local"], second["dep_local"], window),
         })
     return out
 

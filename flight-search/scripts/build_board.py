@@ -168,6 +168,8 @@ def _origins(trips, params, coverage):
 def _ret_airports(trips, params, origins):
     configured = params.get("return_airports", "same_as_origins")
     if configured and configured != "same_as_origins":
+        if isinstance(configured, str):
+            return [configured]
         return list(configured)
     named = {t["ret_airport"] for t in trips if t.get("ret_airport")}
     return sorted(set(origins) | named) if named else list(origins)
@@ -218,6 +220,14 @@ def _ground_notes(params):
 
 def _ground(notes, code):
     return notes.get(code) or "not determined"
+
+
+def _sweep_stop_limit(trips):
+    """The single stop limit the sweep ran at, if any sweep row exists."""
+    for trip in trips:
+        if trip.get("price_basis") == "sweep" and trip.get("max_stops") is not None:
+            return trip["max_stops"]
+    return None
 
 
 def _stop_budgets(params, trips):
@@ -712,18 +722,39 @@ def _caveats_section(trips, params, origins, coverage):
     undetermined = [o for o in origins if coverage.get(o, "not_determined") != "ok"]
     unexpanded = [t for t in trips if not t.get("legs_expanded")]
     budgets = _stop_budgets(params, trips)
+    sweep_limit = _sweep_stop_limit(trips)
+    sweep_counts = {}
+    for t in trips:
+        if t.get("price_basis") == "sweep" and t.get("origin"):
+            sweep_counts[t["origin"]] = sweep_counts.get(t["origin"], 0) + 1
 
     items = []
     was = "was" if len(backfilled) == 1 else "were"
+    if backfilled:
+        parts = []
+        for origin in backfilled:
+            n_sweep = sweep_counts.get(origin, 0)
+            budget = budgets.get(origin)
+            over_budget = (budget is not None and sweep_limit is not None
+                          and budget > sweep_limit)
+            detail = f"{origin} ({n_sweep} sweep fare{'s' if n_sweep != 1 else ''}"
+            if over_budget:
+                detail += f", allows {budget} stops against the sweep's {sweep_limit}"
+            detail += ")"
+            parts.append(detail)
+        backfill_body = (
+            ", ".join(parts) + f" {was} searched alone at their own stop "
+            "budget. A search is backfilled either because the sweep "
+            "returned nothing for the origin, or because the origin's stop "
+            "budget is wider than the single limit a sweep search can "
+            "carry, so its extra stops were never tried until backfill. "
+            "Those fares came from a different search than the rest of the "
+            "board.")
+    else:
+        backfill_body = ("No origin needed a backfill search. Every fare on "
+                         "the board came out of the sweep.")
     items.append(
-        "<li><h3>Origins backfilled</h3><p>"
-        + (esc(", ".join(backfilled)) + f" {was} searched alone after the "
-           "sweep returned nothing for them, at their own stop budget. Those "
-           "fares came from a different search than the rest of the board."
-           if backfilled else
-           "No origin needed a backfill search. Every fare on the board came "
-           "out of the sweep.")
-        + "</p></li>")
+        f"<li><h3>Origins backfilled</h3><p>{esc(backfill_body)}</p></li>")
     them = "it" if len(undetermined) == 1 else "them"
     items.append(
         "<li><h3>Coverage not determined</h3><p>"

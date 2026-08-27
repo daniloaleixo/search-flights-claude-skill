@@ -1,6 +1,7 @@
 import unittest
 
-from scripts.build_board import (NIGHT_LABELS, airport_matrix,
+from scripts.build_board import (NIGHT_LABELS, _caveats_section,
+                                 _ret_airports, airport_matrix,
                                  date_matrix, origin_matrix,
                                  render)
 
@@ -108,6 +109,65 @@ class TestDateMatrix(unittest.TestCase):
         m = date_matrix(TRIPS, ["2026-12-19", "2026-12-20"], ["2027-02-09"])
         self.assertEqual(m[("2026-12-19", "2027-02-09")]["price_eur"], 1151)
         self.assertEqual(m[("2026-12-20", "2027-02-09")]["price_eur"], 1400)
+
+
+class TestRetAirportsBareString(unittest.TestCase):
+    def test_bare_string_wraps_to_single_element_list(self):
+        params = {"return_airports": "BER"}
+        self.assertEqual(_ret_airports([], params, ["BER", "FRA"]), ["BER"])
+
+    def test_bare_string_does_not_splat_into_characters(self):
+        params = {"return_airports": "BER"}
+        result = _ret_airports([], params, ["BER", "FRA"])
+        self.assertNotIn("B", result)
+
+
+class TestCaveatsBackfillReason(unittest.TestCase):
+    """The backfilled-origins caveat must state the real reason: absence
+    from the sweep, or a stop budget the sweep's shared limit cannot
+    express. It must never claim the sweep "returned nothing" for an origin
+    that the sweep did in fact return rows for.
+    """
+
+    def test_does_not_falsely_claim_absence_when_sweep_had_rows(self):
+        # BER: 4 sweep rows, plus a backfill row at a wider stop budget.
+        trips = [
+            {"origin": "BER", "price_basis": "sweep", "max_stops": 1}
+            for _ in range(4)
+        ] + [{"origin": "BER", "price_basis": "backfill", "max_stops": 2}]
+        params = {"origins": [{"code": "BER", "max_stops": 2}]}
+        html = _caveats_section(trips, params, ["BER"], {"BER": "ok"})
+        item = html.split("Origins backfilled")[1].split("</li>")[0]
+        # The old, false, single-cause claim must be gone.
+        self.assertNotIn("returned nothing for them", item)
+        # BER's own annotation must show it actually had sweep rows.
+        self.assertIn("4 sweep fares", item)
+
+    def test_states_the_stop_budget_trigger_for_an_over_budget_origin(self):
+        trips = [
+            {"origin": "BER", "price_basis": "sweep", "max_stops": 1}
+            for _ in range(4)
+        ] + [{"origin": "BER", "price_basis": "backfill", "max_stops": 2}]
+        params = {"origins": [{"code": "BER", "max_stops": 2}]}
+        html = _caveats_section(trips, params, ["BER"], {"BER": "ok"})
+        item = html.split("Origins backfilled")[1].split("</li>")[0]
+        self.assertIn("4 sweep fares", item)
+        self.assertIn("allows 2 stops", item)
+        self.assertIn("sweep&#x27;s 1", item)
+
+    def test_absent_origin_still_says_zero_sweep_fares(self):
+        trips = [{"origin": "BER", "price_basis": "backfill", "max_stops": 1}]
+        params = {"origins": [{"code": "BER", "max_stops": 1}]}
+        html = _caveats_section(trips, params, ["BER"], {"BER": "ok"})
+        item = html.split("Origins backfilled")[1].split("</li>")[0]
+        self.assertIn("0 sweep fare", item)
+
+    def test_no_backfill_at_all_says_so(self):
+        trips = [{"origin": "BER", "price_basis": "sweep", "max_stops": 1}]
+        params = {"origins": [{"code": "BER", "max_stops": 1}]}
+        html = _caveats_section(trips, params, ["BER"], {"BER": "ok"})
+        item = html.split("Origins backfilled")[1].split("</li>")[0]
+        self.assertIn("No origin needed a backfill search", item)
 
 
 class TestRender(unittest.TestCase):

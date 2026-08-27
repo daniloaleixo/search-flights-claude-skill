@@ -28,6 +28,22 @@ class TestLayoverWindows(unittest.TestCase):
                 leg("LIS", "GRU", "2026-12-19T16:00", "2026-12-20T00:00")]
         self.assertEqual([w["code"] for w in layover_windows(legs)], ["FRA", "LIS"])
 
+    def test_night_flag_uses_the_default_band(self):
+        legs = [leg("BER", "LIS", "2026-12-19T18:15", "2026-12-19T20:50"),
+                leg("LIS", "GRU", "2026-12-20T04:55", "2026-12-20T10:40")]
+        self.assertTrue(layover_windows(legs)[0]["night_flag"])
+
+    def test_night_flag_respects_a_configured_window(self):
+        # A daytime layover is not flagged under the default 23:00-06:00
+        # band, but is flagged once a custom band covering daytime hours
+        # (params["night_layover_window"]) is passed through explicitly.
+        legs = [leg("BER", "FRA", "2026-12-19T07:00", "2026-12-19T09:00"),
+                leg("FRA", "GRU", "2026-12-19T16:00", "2026-12-19T20:00")]
+        self.assertFalse(layover_windows(legs)[0]["night_flag"])
+        from datetime import time
+        daytime = (time(8, 0), time(17, 0))
+        self.assertTrue(layover_windows(legs, window=daytime)[0]["night_flag"])
+
 
 class TestIsNightLayover(unittest.TestCase):
     def test_layover_spanning_midnight_is_night(self):

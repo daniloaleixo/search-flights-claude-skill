@@ -6,7 +6,20 @@ module says which URLs to open, ingest.py consumes what came back.
 
 from datetime import date, timedelta
 
-from scripts.tfs import Leg, build_url, TRIP_MULTI_CITY
+from scripts.tfs import Leg, build_url, TRIP_MULTI_CITY, TRIP_ROUND, SEAT_ECONOMY
+
+#: cabin -> tfs seat code. `ticket` and `night_discount.mode` are read
+#: nowhere: they stay declarative, documented in SKILL.md, and are not
+#: wired to anything here.
+CABIN_SEATS = {"economy": SEAT_ECONOMY}
+
+
+def _seat(params):
+    cabin = params.get("cabin", "economy")
+    try:
+        return CABIN_SEATS[cabin]
+    except KeyError:
+        raise ValueError(f"unrecognised cabin: {cabin!r}")
 
 
 def _dates(window):
@@ -27,6 +40,8 @@ def return_airports(params):
     configured = params.get("return_airports", "same_as_origins")
     if configured == "same_as_origins":
         return origin_codes(params)
+    if isinstance(configured, str):
+        return [configured]
     return list(configured)
 
 
@@ -42,7 +57,7 @@ def date_pairs(params):
             for r in _dates(params["ret_window"])]
 
 
-def _search(params, sid, dep, ret, origins, rets, max_stops):
+def _search(params, sid, dep, ret, origins, rets, max_stops, trip=TRIP_MULTI_CITY):
     legs = [
         Leg(dep, tuple(origins), (params["dest"],), max_stops=max_stops),
         Leg(ret, (params["dest"],), tuple(rets), max_stops=max_stops),
@@ -54,9 +69,11 @@ def _search(params, sid, dep, ret, origins, rets, max_stops):
         "origins": list(origins),
         "ret_airports": list(rets),
         "max_stops": max_stops,
+        "trip_type": "round_trip" if trip == TRIP_ROUND else "multi_city",
         "url": build_url(
-            legs, TRIP_MULTI_CITY,
+            legs, trip,
             pax=params.get("pax", 1),
+            seat=_seat(params),
             max_stops=max_stops,
             curr=params.get("currency", "EUR"),
         ),
@@ -64,15 +81,29 @@ def _search(params, sid, dep, ret, origins, rets, max_stops):
 
 
 def sweep_searches(params):
-    """One multi-city search per date pair, all origins by all return airports.
+    """One search per date pair, covering every origin.
 
-    A search carries a single stop limit, so the sweep runs at the minimum
-    budget across origins. Origins allowed more stops than that are picked up
-    by backfill_searches, where they are searched alone.
+    Open jaw (the default): a multi-city search per date pair, all origins
+    by all return airports. A search carries a single stop limit, so the
+    sweep runs at the minimum budget across origins. Origins allowed more
+    stops than that are picked up by backfill_searches, where they are
+    searched alone.
+
+    `open_jaw: false`: a round trip carrying several origins returns each
+    outbound paired with a return to that same origin, so no separate
+    return-airport dimension is needed at all. One round-trip search per
+    date pair replaces the multi-city sweep, and `ret_airports` on each
+    search equals the origin list rather than the configured return list.
     """
     origins = origin_codes(params)
-    rets = return_airports(params)
     max_stops = min(stop_budget(params, o) for o in origins)
+    if params.get("open_jaw", True) is False:
+        return [
+            _search(params, f"sweep-{dep}-{ret}", dep, ret, origins, origins,
+                    max_stops, trip=TRIP_ROUND)
+            for dep, ret in date_pairs(params)
+        ]
+    rets = return_airports(params)
     return [
         _search(params, f"sweep-{dep}-{ret}", dep, ret, origins, rets, max_stops)
         for dep, ret in date_pairs(params)
@@ -99,11 +130,15 @@ def origins_needing_backfill(params, rows):
 
 
 def backfill_searches(params, missing_origins, best_pairs):
-    """Per-origin searches for origins the sweep never returned.
+    """Per-origin searches for origins the sweep could not settle.
 
-    An origin missing from a capped result list is not evidence it is
-    expensive, so each one gets its own search at its own stop budget before
-    the run may say anything about it.
+    `missing_origins` (typically from origins_needing_backfill) mixes two
+    distinct reasons, either one sufficient on its own: an origin the
+    sweep's capped result list never returned at all, which is not evidence
+    it is expensive; or an origin the sweep did return but only at the
+    sweep's shared stop limit, because its own budget allows more stops
+    than a single sweep search can carry. Either way it gets its own search
+    at its own stop budget before the run may say anything about it.
     """
     out = []
     rets = return_airports(params)
