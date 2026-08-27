@@ -361,8 +361,8 @@ def _section(eyebrow, heading, standfirst, body):
     )
 
 
-def _scroller(inner):
-    return f'<div class="scroller" tabindex="0">{inner}</div>'
+def _scroller(inner, extra=""):
+    return f'<div class="scroller{extra}" tabindex="0">{inner}</div>'
 
 
 # --------------------------------------------------------------------------
@@ -411,47 +411,72 @@ def _masthead(trips, params, cheapest, domain):
 
 
 def _origin_section(trips, origins, pairs, domain, cheapest):
+    """One small heatmap per departure airport, all on a shared scale.
+
+    A single grid of every airport against every date pair is 6 by 20 on the
+    real parameter block, which is unreadable and hides the thing worth
+    seeing: each airport has its own date shape. Small multiples put those
+    shapes side by side. The colour scale is shared across every grid, so a
+    cell means the same fare whichever airport it sits under; scaling each
+    grid to its own range would make a dear airport's best date look like a
+    bargain.
+    """
     cells = origin_matrix(trips, origins, pairs)
     best_id = id(cheapest) if cheapest is not None else None
-    deps = []
-    for dep, _ret in pairs:
+
+    deps, rets = [], []
+    for dep, ret in pairs:
         if dep not in deps:
             deps.append(dep)
+        if ret not in rets:
+            rets.append(ret)
 
-    head = ['<tr><th class="corner" scope="col">Leaves from</th>']
-    body_rows = []
-    last_dep = None
-    for dep, ret in pairs:
-        edge = " group-edge" if dep != last_dep else ""
-        last_dep = dep
-        head.append(
-            f'<th class="col{edge}" scope="col">'
-            f'<span class="col-out">{esc(_day(dep))}</span>'
-            f'<span class="col-back">back {esc(_day(ret))}</span></th>')
-    head.append("</tr>")
-
+    minis = []
     for origin in origins:
-        row = [f'<tr><th class="rowhead" scope="row">{esc(str(origin))}</th>']
-        last_dep = None
-        for pair in pairs:
-            edge = " group-edge" if pair[0] != last_dep else ""
-            last_dep = pair[0]
-            row.append(_price_cell(cells[(origin, tuple(pair))], domain,
-                                   best_id, edge))
-        row.append("</tr>")
-        body_rows.append("".join(row))
+        found = [cells[(origin, (dep, ret))]
+                 for dep in deps for ret in rets
+                 if cells.get((origin, (dep, ret))) is not None]
+        best = min(found, key=lambda t: t["price_eur"], default=None)
+        caption = (f'<span class="mini-best">from {best["price_eur"]} EUR'
+                   f'</span>' if best else
+                   '<span class="mini-nd">not determined</span>')
 
-    table = ('<table class="matrix"><caption class="sr-only">Cheapest fare by '
-             'departure airport and date pair</caption><thead>'
-             + "".join(head) + "</thead><tbody>"
-             + "".join(body_rows) + "</tbody></table>")
+        head = ['<tr><th class="corner" scope="col">Out</th>']
+        for ret in rets:
+            head.append('<th class="col" scope="col">'
+                        f'<span class="col-out">{esc(_day(ret))}</span>'
+                        '<span class="col-back">back</span></th>')
+        head.append("</tr>")
+
+        rows = []
+        for dep in deps:
+            row = [f'<tr><th class="rowhead" scope="row">'
+                   f'{esc(_day(dep))}</th>']
+            for ret in rets:
+                row.append(_price_cell(cells[(origin, (dep, ret))], domain,
+                                       best_id))
+            row.append("</tr>")
+            rows.append("".join(row))
+
+        table = ('<table class="matrix matrix--tight">'
+                 f'<caption class="sr-only">{esc(str(origin))}, cheapest fare '
+                 'by departure date and return date</caption><thead>'
+                 + "".join(head) + "</thead><tbody>"
+                 + "".join(rows) + "</tbody></table>")
+        minis.append(
+            '<figure class="mini"><figcaption class="mini-cap">'
+            f'<span class="code">{esc(str(origin))}</span>{caption}'
+            '</figcaption>' + _scroller(table) + "</figure>")
+
     return _section(
         "The headline view",
-        "Departure airport by date pair",
-        "Each cell is the cheapest fare the sweep returned for that airport "
-        "leaving on that date and coming back on the other. This is the view "
-        "the sweep genuinely supports, so it leads.",
-        _ramp_legend(domain) + _scroller(table),
+        "Every airport, every date pair",
+        "One grid per departure airport: outbound date down the side, return "
+        "date across the top, cheapest fare in the cell. The grids share one "
+        "colour scale, so a cell means the same fare whichever airport it "
+        "sits under. This is the view the sweep genuinely supports, so it "
+        "leads.",
+        _ramp_legend(domain) + '<div class="minis">' + "".join(minis) + "</div>",
     )
 
 
@@ -472,7 +497,8 @@ def _coverage_section(trips, origins, coverage, domain):
             price = (f'<span class="cover-price s{_step(cheapest["price_eur"], domain)}">'
                      f'{cheapest["price_eur"]}</span>')
         else:
-            price = '<span class="nd nd--inline">not determined</span>'
+            price = ('<span class="nd nd--inline cover-nd">not '
+                     'determined</span>')
         basis = "backfill search" if backfilled else (
             "sweep" if found else "no rows returned")
         rows.append(
@@ -520,53 +546,6 @@ def _airport_section(trips, origins, rets, domain):
         f"expanded, so only {filled} of {len(cells)} cells can be filled. The "
         "rest are unmeasured, not empty.",
         _ramp_legend(domain) + _scroller(table),
-    )
-
-
-def _date_section(trips, origins, deps, rets, domain):
-    ranked = []
-    for origin in origins:
-        found = [t for t in trips if t.get("origin") == origin]
-        if found:
-            ranked.append((min(t["price_eur"] for t in found), origin))
-    leading = [origin for _price, origin in sorted(ranked)[:3]]
-    if not leading:
-        return _section(
-            "Date shape",
-            "Departure date by return date",
-            "No airport returned enough fares to draw a date grid.",
-            '<p class="nd-block">not determined</p>')
-
-    grids = []
-    for origin in leading:
-        own = [t for t in trips if t.get("origin") == origin]
-        cells = date_matrix(own, deps, rets)
-        head = ['<tr><th class="corner" scope="col">Out</th>']
-        for ret in rets:
-            head.append(f'<th class="col" scope="col">'
-                        f'<span class="col-out">{esc(_day(ret))}</span>'
-                        f'<span class="col-back">back</span></th>')
-        head.append("</tr>")
-        rows = []
-        for dep in deps:
-            row = [f'<tr><th class="rowhead" scope="row">'
-                   f'{esc(_day(dep))}</th>']
-            for ret in rets:
-                row.append(_price_cell(cells[(dep, ret)], domain, None))
-            row.append("</tr>")
-            rows.append("".join(row))
-        table = ('<table class="matrix matrix--tight">'
-                 f'<caption class="grid-cap">{esc(str(origin))}</caption>'
-                 '<thead>' + "".join(head) + '</thead><tbody>'
-                 + "".join(rows) + "</tbody></table>")
-        grids.append(_scroller(table))
-
-    return _section(
-        "Date shape",
-        "Departure date by return date",
-        "The leading airports again, this time with the dates opened out, so "
-        "the cost of moving a day either way is visible.",
-        _ramp_legend(domain) + '<div class="grids">' + "".join(grids) + "</div>",
     )
 
 
@@ -722,7 +701,7 @@ def _board_section(trips, colors, domain, dest):
         "Cheapest first. A night layover does not disqualify a fare, it "
         "obliges it to be considerably cheaper; the night column says whether "
         "it is, or says that nobody checked.",
-        legend_block + _scroller(table),
+        legend_block + _scroller(table, " scroller--board"),
     )
 
 
@@ -900,7 +879,6 @@ body {
   font-size: 16px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
 }
 .page {
   max-width: 1140px;
@@ -1123,21 +1101,38 @@ table { border-collapse: separate; border-spacing: 0; width: 100%; }
 .s5 { background-color: var(--seq-5); color: var(--seq-ink-5); }
 .s6 { background-color: var(--seq-6); color: var(--seq-ink-6); }
 
-.grids {
+.minis {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
   gap: 16px;
 }
-.grid-cap {
-  caption-side: top;
-  text-align: left;
-  padding: 9px 10px;
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 0.86rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
+.mini { margin: 0; border: 1px solid var(--hairline); background: var(--surface); }
+.mini .scroller { border: 0; }
+/* A small multiple is only readable if all of it is on screen at once, so
+   the cells shrink to fit the card rather than the card scrolling. The
+   scroller stays as the fallback for very narrow viewports. */
+.mini .matrix { min-width: 100%; }
+/* Specificity, not source order: .matrix--tight .cell sets its own
+   min-width further down the sheet and would otherwise win this. */
+.mini .matrix--tight .cell { min-width: 60px; }
+.mini .col { padding-left: 7px; padding-right: 7px; }
+.mini .rowhead { padding-right: 8px; }
+.mini-cap {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
   background: var(--surface-2);
   border-bottom: 1px solid var(--rule);
+}
+.mini-cap .code { font-size: 0.95rem; }
+.mini-best {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.76rem;
+  color: var(--ink-2);
+}
+.mini-nd {
+  font-size: 0.66rem; letter-spacing: 0.05em; color: var(--muted);
 }
 .matrix--tight .cell { min-width: 74px; height: 40px; }
 .matrix--tight .cell--seq .cell-price { padding: 10px 6px; }
@@ -1161,6 +1156,9 @@ table { border-collapse: separate; border-spacing: 0; width: 100%; }
   font-variant-numeric: tabular-nums;
   font-size: 0.88rem; font-weight: 500;
   padding: 3px 9px;
+}
+.cover-nd {
+  display: inline-block; padding: 3px 9px; min-width: 4.6em;
 }
 .cover-basis { color: var(--muted); font-size: 0.8rem; margin-left: auto; }
 
@@ -1298,6 +1296,11 @@ table { border-collapse: separate; border-spacing: 0; width: 100%; }
 .go:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 
 /* board -------------------------------------------------------------- */
+.scroller--board {
+  max-height: min(72vh, 720px);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
 .board { min-width: max-content; font-size: 0.86rem; }
 .board th {
   position: sticky; top: 0; z-index: 1;
@@ -1373,8 +1376,6 @@ def render(trips, params, coverage=None):
     dest = params.get("dest") or "destination"
     origins = _origins(trips, params, coverage)
     rets = _ret_airports(trips, params, origins)
-    deps = _dep_dates(trips, params)
-    ret_dates = _ret_dates(trips, params)
     pairs = _date_pairs(trips, params)
     domain = _price_domain(trips)
     colors = _carrier_colors(trips)
@@ -1393,7 +1394,6 @@ def render(trips, params, coverage=None):
         _origin_section(trips, origins, pairs, domain, cheapest),
         _coverage_section(trips, origins, coverage, domain),
         _airport_section(trips, origins, rets, domain),
-        _date_section(trips, origins, deps, ret_dates, domain),
         _candidate_section(trips, params, colors, notes, dest),
         _board_section(trips, colors, domain, dest),
         _caveats_section(trips, params, origins, coverage),

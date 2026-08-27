@@ -1,6 +1,8 @@
 import unittest
 
-from scripts.build_board import airport_matrix, date_matrix, origin_matrix, render
+from scripts.build_board import (NIGHT_LABELS, airport_matrix,
+                                 date_matrix, origin_matrix,
+                                 render)
 
 ORIGINS = ["BER", "FRA", "AMS"]
 RETS = ["BER", "FRA", "AMS"]
@@ -35,6 +37,31 @@ DEARER_AMS = {"id": "t4", "origin": "AMS", "ret_airport": None,
               "legs_expanded": False, "night_saving_eur": None, "stops": 2,
               "total_duration_min": 1900, "carriers": ("TAP",),
               "tfs_url": "https://example/4"}
+
+
+CLEAN_TRIP = TRIPS[1]
+UNKNOWN_TRIP = TRIPS[2]
+
+
+def markup(html):
+    """The page with its stylesheet cut out.
+
+    Every class the page can ever wear is named in the <style> block, so
+    asserting a class is absent from the whole document proves nothing.
+    These assertions have to run against the markup alone.
+    """
+    head, _, rest = html.partition("<style>")
+    _, _, tail = rest.partition("</style>")
+    return head + tail
+
+
+def coverage_row(html, code):
+    """One origin's row out of the coverage strip."""
+    for chunk in html.split('<li class="cover">')[1:]:
+        row = chunk.split("</li>")[0]
+        if f">{code}<" in row:
+            return row
+    raise AssertionError(f"no coverage row for {code}")
 
 
 class TestOriginMatrix(unittest.TestCase):
@@ -95,10 +122,50 @@ class TestRender(unittest.TestCase):
             self.assertIn(str(trip["price_eur"]), self.html)
 
     def test_unknown_night_status_is_labelled_not_shown_as_clean(self):
-        self.assertIn("not checked", self.html.lower())
+        # Rendered alone, so nothing else on the page can supply the words
+        # or the class: the unknown verdict has to produce both itself, and
+        # must not reach for any of the styling a clean verdict earns.
+        body = markup(render([UNKNOWN_TRIP], PARAMS, {"AMS": "ok"}))
+        self.assertIn("not checked", body.lower())
+        self.assertIn("pill--unknown", body)
+        self.assertNotIn("pill--clean", body)
+        self.assertNotIn(NIGHT_LABELS["clean"], body)
+
+    def test_clean_night_status_is_not_labelled_not_checked(self):
+        body = markup(render([CLEAN_TRIP], PARAMS, {"FRA": "ok"}))
+        self.assertIn("pill--clean", body)
+        self.assertIn(NIGHT_LABELS["clean"], body)
+        self.assertNotIn("pill--unknown", body)
+        self.assertNotIn("not checked", body.lower())
+
+    def test_a_mixed_board_keeps_the_two_verdicts_apart(self):
+        body = markup(self.html)
+        self.assertIn("pill--clean", body)
+        self.assertIn("pill--unknown", body)
 
     def test_origin_without_coverage_is_reported_as_not_determined(self):
-        self.assertIn("not determined", self.html.lower())
+        # Assert on the coverage row itself. "not determined" appears in the
+        # ramp legend on every page ever rendered, so finding it anywhere in
+        # the document would not prove the coverage strip did its job.
+        #
+        # BER is given a fare here on purpose. Without one the row would say
+        # "not determined" whatever the coverage logic did, and the test
+        # would pass for the wrong reason. With one, the only way the price
+        # stays hidden is if coverage actually wins.
+        ber_fare = dict(UNKNOWN_TRIP, origin="BER", price_eur=999)
+        body = markup(render(TRIPS + [ber_fare], PARAMS, COVERAGE))
+        row = coverage_row(body, "BER")
+        self.assertIn("cover-nd", row)
+        self.assertIn("not determined", row.lower())
+        self.assertNotIn("cover-price", row)
+        self.assertNotIn("999", row)
+
+    def test_origin_with_coverage_is_reported_as_a_price(self):
+        body = markup(self.html)
+        fra = coverage_row(body, "FRA")
+        self.assertIn("cover-price", fra)
+        self.assertIn("1161", fra)
+        self.assertNotIn("cover-nd", fra)
 
     def test_justified_night_trip_states_its_saving(self):
         self.assertIn("200", self.html)
