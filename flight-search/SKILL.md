@@ -41,11 +41,13 @@ report "Sorted by price".
 4. Ingest, then check coverage:
 
        python3 -c "from scripts.ingest import merge_captures; ..."
-       python3 -c "from scripts.normalize import missing_origins; ..."
+       python3 -c "from scripts.plan_run import origins_needing_backfill; ..."
 
-   Any origin the sweep never returned goes to `backfill_searches` with the
-   three cheapest date pairs. An origin missing from a capped list is not
-   evidence it is expensive.
+   Feed the merged rows to `origins_needing_backfill`, not `missing_origins`:
+   an origin can appear in every capture and still need a backfill search,
+   because the sweep runs at the lowest stop budget across all origins and
+   an origin allowed more stops than that never got to use them. Whatever it
+   returns goes to `backfill_searches` with the three cheapest date pairs.
 
 5. Expand the finalists. `expansion_targets` gives the batch; for each, click
    the row to reveal per-leg times, collect them, and compute layover windows
@@ -54,7 +56,12 @@ report "Sorted by price".
    pass without three clean trips, stop and report that: a field with no
    comfortable option at any price is itself the finding.
 
-6. Apply `apply_night_economics`, build with `build_board.py`, publish with the
+6. Apply `apply_night_economics`, then build the page:
+
+       python3 scripts/build_board.py ../runs/<timestamp> > ../fare-board-sao-paulo.html
+
+   (`build_board.py` reads `trips.json` and `params.json` from the run
+   directory, plus `coverage.json` if present.) Publish the result with the
    Artifact tool.
 
 ## Constraints this skill enforces
@@ -66,6 +73,10 @@ report "Sorted by price".
   20% against the cheapest trip in the run with no night layover.
 - `night_verdict: unknown` means nobody checked. Never render it as clean.
 - Open jaws are booked as one multi-city ticket, never as two one-ways.
+- A row's `tfs_url` is the sweep search page it came from, not a link to that
+  itinerary: it encodes every origin and one date pair, not one flight.
+  Reopening it reopens the search, and the row has to be found again inside
+  the results, not the fare by itself.
 
 ## When Google changes
 

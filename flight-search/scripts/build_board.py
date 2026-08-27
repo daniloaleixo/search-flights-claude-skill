@@ -766,6 +766,13 @@ def _caveats_section(trips, params, origins, coverage):
         "airport until the itinerary is expanded, so the return column is "
         '"not determined" for every row nobody opened, and the airport by '
         "airport grid stays mostly unfilled.</p></li>")
+    items.append(
+        "<li><h3>What a row's link actually opens</h3><p>Each row's link is "
+        "the search it came from, not a bookmark to that one fare: a sweep "
+        "search carries every origin and one date pair, so opening it "
+        "reopens the whole result list, and the fare has to be found again "
+        "inside it, sorted by price. It is not a permalink to a specific "
+        "itinerary.</p></li>")
 
     return _section(
         "Read this before booking",
@@ -1399,3 +1406,32 @@ def render(trips, params, coverage=None):
         _caveats_section(trips, params, origins, coverage),
         "</main>",
     ])
+
+
+# --------------------------------------------------------------------------
+# CLI: build_board.py <run_dir>  ->  page fragment on stdout
+# --------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    import json
+    import os
+    import sys
+
+    run_dir = sys.argv[1]
+    trips = json.load(open(os.path.join(run_dir, "trips.json")))
+    params = json.load(open(os.path.join(run_dir, "params.json")))
+
+    coverage_path = os.path.join(run_dir, "coverage.json")
+    if os.path.exists(coverage_path):
+        coverage = json.load(open(coverage_path))
+    else:
+        # No explicit coverage file: an origin is "ok" if it shows up in at
+        # least one trip, "not_determined" otherwise. Good enough for a run
+        # that didn't bother to record coverage separately.
+        seen = {t.get("origin") for t in trips if t.get("origin")}
+        coverage = {}
+        for origin in params.get("origins") or []:
+            code = origin["code"] if isinstance(origin, dict) else origin
+            coverage[code] = "ok" if code in seen else "not_determined"
+
+    sys.stdout.write(render(trips, params, coverage))

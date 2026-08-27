@@ -2,6 +2,7 @@ import json
 import unittest
 from scripts.plan_run import (
     date_pairs, sweep_searches, backfill_searches, stop_budget,
+    origins_needing_backfill,
 )
 
 PARAMS = {
@@ -71,6 +72,32 @@ class TestSweepSearches(unittest.TestCase):
         ids = [s["id"] for s in sweep_searches(PARAMS)]
         self.assertEqual(len(ids), len(set(ids)))
         self.assertEqual(sweep_searches(PARAMS)[0]["id"], ids[0])
+
+
+class TestOriginsNeedingBackfill(unittest.TestCase):
+    def test_absent_origin_qualifies(self):
+        rows = [{"origin": "FRA"}, {"origin": "MUC"}, {"origin": "PRG"},
+                {"origin": "AMS"}, {"origin": "HAM"}]
+        self.assertIn("BER", origins_needing_backfill(PARAMS, rows))
+
+    def test_present_origin_with_higher_budget_qualifies(self):
+        # BER appears in every row but its budget (2) exceeds the sweep's
+        # shared limit (1), so its extra stop was never searched.
+        rows = [{"origin": code} for code in
+                ("BER", "FRA", "HAM", "MUC", "PRG", "AMS")]
+        self.assertIn("BER", origins_needing_backfill(PARAMS, rows))
+
+    def test_present_origin_at_sweep_limit_does_not_qualify(self):
+        rows = [{"origin": code} for code in
+                ("BER", "FRA", "HAM", "MUC", "PRG", "AMS")]
+        self.assertNotIn("FRA", origins_needing_backfill(PARAMS, rows))
+
+    def test_no_duplicates_when_an_origin_meets_both_conditions(self):
+        # BER is both absent and over budget: still listed once.
+        rows = [{"origin": "FRA"}, {"origin": "MUC"}, {"origin": "PRG"},
+                {"origin": "AMS"}, {"origin": "HAM"}]
+        result = origins_needing_backfill(PARAMS, rows)
+        self.assertEqual(result.count("BER"), 1)
 
 
 class TestBackfillSearches(unittest.TestCase):

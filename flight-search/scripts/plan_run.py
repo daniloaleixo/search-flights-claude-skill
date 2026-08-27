@@ -79,6 +79,25 @@ def sweep_searches(params):
     ]
 
 
+def origins_needing_backfill(params, rows):
+    """Origins that still need their own search after the sweep.
+
+    Two separate reasons put an origin here, and either one is enough:
+    it never showed up in `rows` at all (crowded out of a capped result
+    list, which is not evidence it is expensive), or it showed up but its
+    own stop budget is wider than the sweep's shared limit, so the sweep
+    structurally could not have searched it at the stops it is allowed.
+    Checking `rows` alone catches the first case but silently drops the
+    second: an origin can appear in every capture and still never have had
+    its extra stop searched.
+    """
+    origins = origin_codes(params)
+    sweep_limit = min(stop_budget(params, o) for o in origins)
+    seen = {r["origin"] for r in rows}
+    return [o for o in origins
+            if o not in seen or stop_budget(params, o) > sweep_limit]
+
+
 def backfill_searches(params, missing_origins, best_pairs):
     """Per-origin searches for origins the sweep never returned.
 
