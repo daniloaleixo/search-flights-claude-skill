@@ -4,7 +4,8 @@ import pathlib
 import unittest
 
 from scripts.ingest import (
-    SortOrderError, assert_price_sorted, ingest_capture, merge_captures,
+    ResultSetError, SortOrderError, assert_cheapest_tab, assert_price_sorted,
+    ingest_capture, merge_captures,
 )
 
 CAPTURE = json.loads(
@@ -31,6 +32,26 @@ class TestSortAssertion(unittest.TestCase):
         bad["sortedBy"] = None
         with self.assertRaises(SortOrderError):
             assert_price_sorted(bad)
+
+
+class TestResultSetAssertion(unittest.TestCase):
+    def test_cheapest_tab_page_passes(self):
+        assert_cheapest_tab(CAPTURE)
+
+    def test_best_tab_page_is_rejected_even_when_sorted_by_price(self):
+        # The exact shape that produced the first run's board: Best tab,
+        # price-sorted, cheapest row 24% above the Cheapest tab's.
+        bad = copy.deepcopy(CAPTURE)
+        bad["activeTab"] = "Best"
+        assert_price_sorted(bad)
+        with self.assertRaises(ResultSetError):
+            assert_cheapest_tab(bad)
+
+    def test_missing_tab_field_is_rejected(self):
+        bad = copy.deepcopy(CAPTURE)
+        del bad["activeTab"]
+        with self.assertRaises(ResultSetError):
+            assert_cheapest_tab(bad)
 
 
 class TestIngest(unittest.TestCase):
@@ -60,6 +81,12 @@ class TestIngest(unittest.TestCase):
         bad = copy.deepcopy(CAPTURE)
         bad["sortedBy"] = "Sorted by top flights"
         with self.assertRaises(SortOrderError):
+            ingest_capture(bad, SEARCH)
+
+    def test_best_tab_capture_refuses_to_ingest(self):
+        bad = copy.deepcopy(CAPTURE)
+        bad["activeTab"] = "Best"
+        with self.assertRaises(ResultSetError):
             ingest_capture(bad, SEARCH)
 
     def test_zero_rows_on_a_loaded_page_raises(self):

@@ -1,7 +1,7 @@
 import unittest
 from scripts.tfs import (
     Leg, build_url, encode_tfs,
-    TRIP_ONE_WAY, TRIP_MULTI_CITY, SORT_BY_PRICE,
+    TRIP_ONE_WAY, TRIP_MULTI_CITY, CHEAPEST_TAB,
 )
 
 SIX = ("BER", "FRA", "HAM", "MUC", "PRG", "AMS")
@@ -55,9 +55,15 @@ class TestBuildUrl(unittest.TestCase):
     def setUp(self):
         self.legs = [Leg("2026-12-19", ("BER",), ("GRU",), max_stops=1)]
 
-    def test_url_carries_price_sort_by_default(self):
+    def test_url_lands_on_the_cheapest_tab_by_default(self):
         url = build_url(self.legs, TRIP_ONE_WAY, max_stops=1)
-        self.assertIn("tfu=" + SORT_BY_PRICE, url)
+        self.assertIn("tfu=" + CHEAPEST_TAB, url)
+
+    def test_cheapest_tab_value_is_not_the_best_tab_price_sort(self):
+        # "EgYIAhAAGAA" sorts the Best set by price and leaves the cheaper
+        # result set unreached. Pinning the distinction so it cannot regress.
+        self.assertNotEqual(CHEAPEST_TAB, "EgYIAhAAGAA")
+        self.assertEqual(CHEAPEST_TAB, "EgoIAhAAGAAgAigB")
 
     def test_url_carries_locale_and_currency(self):
         url = build_url(self.legs, TRIP_ONE_WAY, max_stops=1)
@@ -65,8 +71,8 @@ class TestBuildUrl(unittest.TestCase):
         self.assertIn("gl=de", url)
         self.assertIn("curr=EUR", url)
 
-    def test_sort_can_be_disabled_explicitly(self):
-        url = build_url(self.legs, TRIP_ONE_WAY, sort_by_price=False)
+    def test_tab_selection_can_be_disabled_explicitly(self):
+        url = build_url(self.legs, TRIP_ONE_WAY, cheapest_tab=False)
         self.assertNotIn("tfu=", url)
 
 

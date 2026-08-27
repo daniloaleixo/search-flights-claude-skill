@@ -21,6 +21,12 @@
     url: location.href,
     title: document.title,
     sortedBy: (bodyText.match(/Sorted by[^\n]*/) || [null])[0],
+    // Best and Cheapest are two result sets, not two sort orders. The
+    // ingester refuses any page whose selected tab is not Cheapest.
+    activeTab: (() => {
+      const tab = document.querySelector('[role="tab"][aria-selected="true"]');
+      return tab ? tab.innerText.split('\n')[0].trim() : null;
+    })(),
     filters: (bodyText.match(/All filters \(\d+\)/) || [null])[0],
     legFields: [...document.querySelectorAll('input')]
       .map((i) => i.value)

@@ -65,9 +65,9 @@ class TestSweepSearches(unittest.TestCase):
         self.assertEqual(len(s["origins"]), 6)
         self.assertEqual(len(s["ret_airports"]), 6)
 
-    def test_every_url_is_price_sorted(self):
+    def test_every_url_lands_on_the_cheapest_tab(self):
         for s in sweep_searches(PARAMS):
-            self.assertIn("tfu=EgYIAhAAGAA", s["url"])
+            self.assertIn("tfu=EgoIAhAAGAAgAigB", s["url"])
 
     def test_ids_are_unique_and_stable(self):
         ids = [s["id"] for s in sweep_searches(PARAMS)]

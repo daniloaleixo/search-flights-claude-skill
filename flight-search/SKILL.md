@@ -14,9 +14,18 @@ calendars and price graphs are precomputed caches and they go stale. On
 list showed 861 EUR.
 
 Default result order is also not price order. "Top flights" led with 1161 EUR
-on a page whose cheapest row was 1151 EUR. Every generated URL carries
-`&tfu=EgYIAhAAGAA`, and `ingest.py` refuses any capture whose page did not
-report "Sorted by price".
+on a page whose cheapest row was 1151 EUR.
+
+Sorting by price is not enough either. The results page carries two tabs, Best
+and Cheapest, and they are two different result sets rather than two orderings
+of one: on FRA-GRU 23 Dec / 12 Feb at one stop, the Best tab's cheapest row was
+1159 EUR and the Cheapest tab's was 879 EUR, and the same TAP departure was
+1172 EUR on one tab and 1114 EUR on the other. A price-sorted Best page looks
+entirely healthy while hiding all of that.
+
+Every generated URL therefore carries `&tfu=EgoIAhAAGAAgAigB`, which lands on
+the Cheapest tab, and `ingest.py` refuses any capture whose page did not report
+both "Sorted by price" and a selected tab of "Cheapest".
 
 ## Running a search
 

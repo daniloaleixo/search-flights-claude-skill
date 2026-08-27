@@ -24,10 +24,14 @@ TRIP_MULTI_CITY = 3
 SEAT_ECONOMY = 1
 PASSENGER_ADULT = 1
 
-# &tfu= value that renders "Sorted by price". Verified against a hand-built
-# tfs link; without it Google serves "Top flights" order, which is not price
-# order and led with a fare 10 EUR above the cheapest on the measured page.
-SORT_BY_PRICE = "EgYIAhAAGAA"
+# &tfu= value that lands on the "Cheapest" tab. Google's results page carries
+# two tabs, and they are two different result sets, not two orderings of one
+# set: on FRA-GRU 23 Dec / 12 Feb, 1 stop, the Best tab's cheapest row was
+# 1159 EUR and the Cheapest tab's was 879 EUR — the same page, 24% apart. The
+# earlier constant "EgYIAhAAGAA" only sorted the Best set by price, which is
+# why every page it captured reported "Sorted by price" while still hiding the
+# cheaper set. Captured from the live URL after clicking the tab, 2026-08-27.
+CHEAPEST_TAB = "EgoIAhAAGAAgAigB"
 
 BASE = "https://www.google.com/travel/flights"
 
@@ -100,9 +104,9 @@ def encode_tfs(legs, trip, pax=1, seat=SEAT_ECONOMY, max_stops=None):
 
 
 def build_url(legs, trip, *, pax=1, seat=SEAT_ECONOMY, max_stops=None,
-              sort_by_price=True, hl="en", gl="de", curr="EUR"):
+              cheapest_tab=True, hl="en", gl="de", curr="EUR"):
     parts = ["tfs=" + encode_tfs(legs, trip, pax, seat, max_stops)]
-    if sort_by_price:
-        parts.append("tfu=" + SORT_BY_PRICE)
+    if cheapest_tab:
+        parts.append("tfu=" + CHEAPEST_TAB)
     parts += [f"hl={hl}", f"gl={gl}", f"curr={curr}"]
     return BASE + "?" + "&".join(parts)

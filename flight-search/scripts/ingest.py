@@ -3,6 +3,9 @@
 Two refusals live here, and they are refusals rather than warnings because
 both failure modes are invisible in the output they corrupt:
 
+  * A page whose selected tab is not "Cheapest". Best and Cheapest are two
+    different result sets, and a Best page reports "Sorted by price" quite
+    happily while its cheapest row sits 24% above the Cheapest tab's.
   * A page not sorted by price. Google's default "Top flights" order is not
     price order; on a measured page it led with a fare 10 EUR above the
     cheapest row on that same page.
@@ -14,10 +17,15 @@ both failure modes are invisible in the output they corrupt:
 from scripts.parse import ParseError, parse_row
 
 PRICE_SORTED = "Sorted by price"
+CHEAPEST_TAB = "Cheapest"
 
 
 class SortOrderError(RuntimeError):
     """The captured page was not sorted by price."""
+
+
+class ResultSetError(RuntimeError):
+    """The captured page was not on the Cheapest tab."""
 
 
 def assert_price_sorted(capture):
@@ -29,11 +37,21 @@ def assert_price_sorted(capture):
         )
 
 
+def assert_cheapest_tab(capture):
+    active = capture.get("activeTab")
+    if active != CHEAPEST_TAB:
+        raise ResultSetError(
+            f"page had the {active!r} tab selected, expected {CHEAPEST_TAB!r}: "
+            f"{capture.get('url', '')[:90]}"
+        )
+
+
 def _price_basis(search):
     return "backfill" if search["id"].startswith("backfill-") else "sweep"
 
 
 def ingest_capture(capture, search, strict=True):
+    assert_cheapest_tab(capture)
     assert_price_sorted(capture)
     if not capture.get("rows"):
         raise ValueError(
