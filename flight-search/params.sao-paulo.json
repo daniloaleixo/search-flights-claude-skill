@@ -1,5 +1,13 @@
 {
   "dest": "GRU",
+  "ground_notes": {
+    "BER": "home, no journey attached",
+    "HAM": "~2h by ICE, 30-80 EUR",
+    "FRA": "~4h by ICE, 70-130 EUR",
+    "PRG": "~4.5h by bus or train, 30-60 EUR",
+    "MUC": "~4.5h by ICE, 70-140 EUR",
+    "AMS": "~6.5h by ICE, 60-120 EUR"
+  },
   "origins": [
     {"code": "BER", "max_stops": 2, "ground": "home"},
     {"code": "FRA", "max_stops": 1},
