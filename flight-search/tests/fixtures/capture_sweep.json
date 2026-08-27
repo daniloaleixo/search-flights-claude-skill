@@ -1,0 +1,18 @@
+{
+  "url": "https://www.google.com/travel/flights?tfs=X&tfu=EgYIAhAAGAA&hl=en&gl=de&curr=EUR",
+  "title": "Berlin and 5 more to São Paulo | Google Flights",
+  "sortedBy": "Sorted by price",
+  "filters": "All filters (1)",
+  "legFields": ["Sat, Dec 19", "Tue, Feb 9"],
+  "rowCount": 2,
+  "rows": [
+    {
+      "aria": "From 1151 euros total. 1 stop flight with ITA. Leaves Amsterdam Airport Schiphol at 5:55 PM on Saturday, December 19 and arrives at São Paulo/Guarulhos–Governor André Franco Montoro International Airport at 6:40 PM on Sunday, December 20. Total duration 28 hr 45 min.  Layover (1 of 1) is a 14 hr 25 min layover at Leonardo da Vinci International Airport in Rome. Select flight",
+      "text": "5:55 PM – 6:40 PM+1\nITA\n28 hr 45 min\nAMS–GRU\n1 stop\n14 hr 25 min FCO\n694 kg CO2e\n€1,151"
+    },
+    {
+      "aria": "From 1161 euros total. 1 stop flight with Lufthansa and LATAM. Operated by Latam Airlines Brasil. Leaves Frankfurt Airport at 7:15 AM on Saturday, December 19 and arrives at São Paulo/Guarulhos–Governor André Franco Montoro International Airport at 8:05 PM on Saturday, December 19. Total duration 16 hr 50 min.  Layover (1 of 1) is a 4 hr 15 min layover at Lisbon Portela Airport in Lisbon. Select flight",
+      "text": "7:15 AM – 8:05 PM\nLufthansa, LATAM\n16 hr 50 min\nFRA–GRU\n1 stop\n4 hr 15 min LIS\n623 kg CO2e\n€1,161"
+    }
+  ]
+}
