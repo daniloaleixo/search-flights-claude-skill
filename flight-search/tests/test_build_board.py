@@ -1,6 +1,6 @@
 import unittest
 
-from scripts.build_board import (NIGHT_LABELS, _caveats_section,
+from scripts.build_board import (NIGHT_LABELS, _airport_section, _caveats_section,
                                  _ret_airports, airport_matrix,
                                  date_matrix, origin_matrix,
                                  render)
@@ -270,3 +270,74 @@ class TestRender(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestCaveatsTripShape(unittest.TestCase):
+    TRIPS = [{"origin": "AMS", "price_basis": "sweep", "max_stops": 1,
+              "price_eur": 933, "legs_expanded": True}]
+    PARAMS = {"origins": [{"code": "AMS", "max_stops": 1}]}
+
+    def test_round_trip_run_says_there_are_no_open_jaws(self):
+        html = _caveats_section(self.TRIPS, dict(self.PARAMS, open_jaw=False),
+                                ["AMS"], {"AMS": "ok"})
+        self.assertIn("No open jaws in this run", html)
+        self.assertNotIn("Where the return airport went", html)
+
+    def test_round_trip_caveat_gives_the_reason_and_the_measured_gap(self):
+        html = _caveats_section(self.TRIPS, dict(self.PARAMS, open_jaw=False),
+                                ["AMS"], {"AMS": "ok"})
+        item = html.split("No open jaws in this run")[1].split("</li>")[0]
+        self.assertIn("no Cheapest tab", item)
+        self.assertIn("1159", item)
+        self.assertIn("879", item)
+
+    def test_open_jaw_run_keeps_the_return_airport_caveat(self):
+        html = _caveats_section(self.TRIPS, dict(self.PARAMS, open_jaw=True),
+                                ["AMS"], {"AMS": "ok"})
+        self.assertIn("Where the return airport went", html)
+        self.assertNotIn("No open jaws in this run", html)
+
+
+class TestCaveatsSelfTransfer(unittest.TestCase):
+    PARAMS = {"origins": [{"code": "BER", "max_stops": 2}]}
+
+    def test_self_transfer_rows_are_named_and_counted(self):
+        trips = [
+            {"origin": "BER", "price_basis": "sweep", "max_stops": 2,
+             "price_eur": 968, "self_transfer": True, "legs_expanded": True},
+            {"origin": "BER", "price_basis": "sweep", "max_stops": 2,
+             "price_eur": 939, "self_transfer": False, "legs_expanded": True},
+        ]
+        html = _caveats_section(trips, self.PARAMS, ["BER"], {"BER": "ok"})
+        item = html.split("Self-transfer fares")[1].split("</li>")[0]
+        self.assertIn("1 of 2 rows", item)
+        self.assertIn("968", item)
+        self.assertNotIn("939", item)
+
+    def test_a_board_with_no_self_transfers_says_so(self):
+        trips = [{"origin": "BER", "price_basis": "sweep", "max_stops": 2,
+                  "price_eur": 939, "self_transfer": False,
+                  "legs_expanded": True}]
+        html = _caveats_section(trips, self.PARAMS, ["BER"], {"BER": "ok"})
+        item = html.split("Self-transfer fares")[1].split("</li>")[0]
+        self.assertIn("No row on the board is a self transfer", item)
+
+
+class TestAirportSectionBlurb(unittest.TestCase):
+    """The sparse airport grid has two different causes and they must not be
+    described interchangeably: in an open-jaw run the cells are unmeasured,
+    in a round-trip run they do not exist."""
+
+    TRIPS = [{"origin": "AMS", "ret_airport": "AMS", "price_eur": 933,
+              "price_basis": "sweep", "max_stops": 1, "legs_expanded": True}]
+
+    def test_round_trip_run_does_not_call_empty_cells_unmeasured(self):
+        html = _airport_section(self.TRIPS, ["AMS"], ["AMS"], (933, 1774),
+                                open_jaw=False)
+        self.assertIn("never priced", html)
+        self.assertNotIn("unmeasured, not empty", html)
+
+    def test_open_jaw_run_keeps_the_unmeasured_wording(self):
+        html = _airport_section(self.TRIPS, ["AMS"], ["AMS"], (933, 1774),
+                                open_jaw=True)
+        self.assertIn("unmeasured, not empty", html)

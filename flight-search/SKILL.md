@@ -27,6 +27,29 @@ Every generated URL therefore carries `&tfu=EgoIAhAAGAAgAigB`, which lands on
 the Cheapest tab, and `ingest.py` refuses any capture whose page did not report
 both "Sorted by price" and a selected tab of "Cheapest".
 
+**Multi-city pages have no Cheapest tab at all.** A `trip=3` result page
+contains zero `[role="tab"]` elements, so the tfu value is inert there and the
+cheaper result set is unreachable. Open jaws are priced as multi-city, so a run
+that wants Cheapest-tab fares must set `open_jaw: false` and sweep with
+round trips. That is a real trade: open jaws are given up to get honest prices.
+`sweep_searches` and `backfill_searches` both switch to `TRIP_ROUND` when
+`open_jaw` is false.
+
+## Getting the results off the page
+
+The `javascript_tool` bridge truncates a returned value at about a thousand
+characters and `read_page` clips every aria-label to a hundred, so neither can
+carry an eleven-row capture. Chrome also blocks a page's second automatic
+download, which rules out writing a blob to disk, and Google's CSP blocks
+`fetch` and `sendBeacon` to localhost.
+
+What does work is `get_page_text`, which returns the whole page uncapped. So a
+capture is two calls: a tiny `javascript_tool` probe returning
+`tab=... sort=...` (and polling until the page stops saying "Fetching
+results", which takes 20-40 seconds and during which the prices shown are
+still moving), then `get_page_text`. `scripts/parse_text.py` reads the text and
+`ingest_page_text` applies the same two refusals.
+
 ## Running a search
 
 1. Write a params file. Copy `params.sao-paulo.json` and edit the windows,
@@ -38,10 +61,13 @@ both "Sorted by price" and a selected tab of "Cheapest".
        python3 -c "import json,sys; from scripts.plan_run import sweep_searches; \
          print(json.dumps(sweep_searches(json.load(open(sys.argv[1])))))" params.sao-paulo.json
 
-3. For each URL: navigate with `mcp__claude-in-chrome__navigate`, wait about
-   three seconds for results to render, then run `scripts/extract.js` through
-   `mcp__claude-in-chrome__javascript_tool`. Save each capture to
-   `runs/<timestamp>/raw/<search_id>.json`.
+3. For each URL: navigate with `mcp__claude-in-chrome__navigate`, poll until
+   the page reports "Sorted by price" and has stopped saying "Fetching
+   results", then read it with `mcp__claude-in-chrome__get_page_text`. Save
+   each capture to `runs/<timestamp>/raw/<search_id>.json` as
+   `{url, activeTab, sortedBy, pageText}`. A page still fetching shows prices
+   that are minutes from final: on one measured page the top fare moved from
+   1025 to 982 EUR between the loading state and the settled one.
 
    Pace the navigations. The first real run (the Sao Paulo trip) took 43
    captures: 20 sweep loads plus 23 backfill loads. The backfill count varies

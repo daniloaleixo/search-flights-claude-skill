@@ -181,3 +181,33 @@ class TestBackfillSearches(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestBackfillHonoursTripType(unittest.TestCase):
+    def params(self, **over):
+        p = dict(PARAMS, open_jaw=False)
+        p.update(over)
+        return p
+
+    def test_round_trip_run_backfills_with_round_trip_searches(self):
+        got = backfill_searches(self.params(), ["BER"], [("2026-12-23", "2027-02-10")])
+        self.assertEqual(got[0]["trip_type"], "round_trip")
+
+    def test_round_trip_backfill_returns_to_its_own_origin(self):
+        got = backfill_searches(self.params(), ["BER"], [("2026-12-23", "2027-02-10")])
+        self.assertEqual(got[0]["ret_airports"], ["BER"])
+
+    def test_round_trip_backfill_lands_on_the_cheapest_tab(self):
+        # Multi-city pages have no Best/Cheapest tabs, so a backfill that
+        # silently stayed multi-city could never reach the cheaper set.
+        got = backfill_searches(self.params(), ["BER"], [("2026-12-23", "2027-02-10")])
+        self.assertIn("tfu=EgoIAhAAGAAgAigB", got[0]["url"])
+
+    def test_open_jaw_run_still_backfills_multi_city(self):
+        got = backfill_searches(dict(PARAMS, open_jaw=True), ["BER"],
+                                [("2026-12-23", "2027-02-10")])
+        self.assertEqual(got[0]["trip_type"], "multi_city")
+
+    def test_backfill_uses_the_origins_own_stop_budget(self):
+        got = backfill_searches(self.params(), ["BER"], [("2026-12-23", "2027-02-10")])
+        self.assertEqual(got[0]["max_stops"], 2)

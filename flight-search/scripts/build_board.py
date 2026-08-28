@@ -527,7 +527,7 @@ def _coverage_section(trips, origins, coverage, domain):
     )
 
 
-def _airport_section(trips, origins, rets, domain):
+def _airport_section(trips, origins, rets, domain, open_jaw=True):
     cells = airport_matrix(trips, origins, rets)
     filled = sum(1 for cell in cells.values() if cell is not None)
     head = ['<tr><th class="corner" scope="col">Out / back</th>']
@@ -548,13 +548,23 @@ def _airport_section(trips, origins, rets, domain):
              'departure airport and return airport</caption><thead>'
              + "".join(head) + "</thead><tbody>" + "".join(rows)
              + "</tbody></table>")
+    if open_jaw:
+        blurb = (
+            "The open-jaw grid, with the conventional round trip on the "
+            "diagonal. Google does not name the return airport until an "
+            f"itinerary is expanded, so only {filled} of {len(cells)} cells "
+            "can be filled. The rest are unmeasured, not empty.")
+    else:
+        blurb = (
+            "Every search in this run was a round trip, so each fare comes "
+            f"back to the airport it left from and only the {filled} diagonal "
+            f"cells of {len(cells)} exist at all. The off-diagonal cells are "
+            "not unmeasured open jaws; they were never priced, because a "
+            "multi-city page has no Cheapest tab to read.")
     return _section(
         "Secondary view",
         "Departure airport by return airport",
-        "The open-jaw grid, with the conventional round trip on the diagonal. "
-        "Google does not name the return airport until an itinerary is "
-        f"expanded, so only {filled} of {len(cells)} cells can be filled. The "
-        "rest are unmeasured, not empty.",
+        blurb,
         _ramp_legend(domain) + _scroller(table),
     )
 
@@ -793,12 +803,36 @@ def _caveats_section(trips, params, origins, coverage):
     else:
         items.append("<li><h3>Stop limit each search ran under</h3>"
                      "<p>not determined</p></li>")
-    items.append(
-        "<li><h3>Where the return airport went</h3><p>A multi-city result row "
-        "describes the outbound leg. Google does not commit to a return "
-        "airport until the itinerary is expanded, so the return column is "
-        '"not determined" for every row nobody opened, and the airport by '
-        "airport grid stays mostly unfilled.</p></li>")
+    if params.get("open_jaw", True) is False:
+        items.append(
+            "<li><h3>No open jaws in this run</h3><p>Every fare here is a "
+            "round trip that comes back to the airport it left from. Open "
+            "jaws were dropped because Google prices them as multi-city "
+            "searches, and a multi-city result page carries no Cheapest tab "
+            "at all, only the Best set. On the one pair measured that gap "
+            "was 1159 EUR against 879 EUR for the same search. The airport "
+            "by airport grid therefore only has a diagonal.</p></li>")
+    else:
+        items.append(
+            "<li><h3>Where the return airport went</h3><p>A multi-city result "
+            "row describes the outbound leg. Google does not commit to a "
+            "return airport until the itinerary is expanded, so the return "
+            'column is "not determined" for every row nobody opened, and the '
+            "airport by airport grid stays mostly unfilled.</p></li>")
+    self_transfers = [t for t in trips if t.get("self_transfer")]
+    if self_transfers:
+        listed = ", ".join(
+            f'{t.get("origin") or "?"} {t.get("price_eur")}'
+            for t in _sorted_trips(self_transfers)[:8])
+        items.append(
+            "<li><h3>Self-transfer fares</h3><p>"
+            f"{len(self_transfers)} of {len(trips)} rows are self transfers: "
+            "two separate tickets, so a missed connection is yours to pay "
+            f"for and bags do not through-check. {esc(listed)}.</p></li>")
+    else:
+        items.append(
+            "<li><h3>Self-transfer fares</h3><p>No row on the board is a "
+            "self transfer. Every fare is a single through ticket.</p></li>")
     items.append(
         "<li><h3>What a row's link actually opens</h3><p>Each row's link is "
         "the search it came from, not a bookmark to that one fare: a sweep "
@@ -1433,7 +1467,8 @@ def render(trips, params, coverage=None):
         _masthead(trips, params, cheapest, domain),
         _origin_section(trips, origins, pairs, domain, cheapest),
         _coverage_section(trips, origins, coverage, domain),
-        _airport_section(trips, origins, rets, domain),
+        _airport_section(trips, origins, rets, domain,
+                         params.get("open_jaw", True) is not False),
         _candidate_section(trips, params, colors, notes, dest),
         _board_section(trips, colors, domain, dest),
         _caveats_section(trips, params, origins, coverage),

@@ -27,6 +27,9 @@ _PRICE = re.compile(r"^€\s?([\d,]+)$")
 _STOPS = re.compile(r"^(Nonstop|(\d+) stops?)$", re.I)
 _DURATION = re.compile(r"^(\d+ hr(?: \d+ min)?|\d+ min)$")
 _LAYOVER = re.compile(r"^(\d+ hr(?: \d+ min)?|\d+ min)\s+([A-Z]{3})$")
+# Two-stop rows drop the durations and list the stops as bare codes:
+# "CDG, FOR". The stop is still real, its length is simply not on the page.
+_LAYOVER_CODES = re.compile(r"^([A-Z]{3})(?:,\s*([A-Z]{3}))+$")
 _CO2 = re.compile(r"^\d+ kg CO2e$")
 _OPERATED = re.compile(r"Operated by .*$")
 
@@ -89,6 +92,11 @@ def parse_text_row(chunk, dep_date):
         if m:
             layovers.append({"minutes": parse_duration_minutes(m.group(1)),
                              "airport_name": m.group(2), "code": m.group(2)})
+            continue
+        if seen_route and _LAYOVER_CODES.match(line):
+            for code in [c.strip() for c in line.split(",")]:
+                layovers.append({"minutes": None, "airport_name": code,
+                                 "code": code})
             continue
         m = _DURATION.match(line)
         if m and duration is None:

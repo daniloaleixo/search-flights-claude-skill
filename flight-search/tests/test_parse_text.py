@@ -81,3 +81,34 @@ class TestParseTextRow(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+TWO_STOP = [
+    "10:05 AM", "–", "6:10 AM+1", "Air France, Gol", "24 hr 5 min",
+    "BER–GRU", "2 stops", "CDG, FOR", "699 kg CO2e", "Avg emissions",
+    "€981", "round trip",
+]
+
+
+class TestTwoStopRows(unittest.TestCase):
+    def setUp(self):
+        self.row = parse_text_row(TWO_STOP, "2026-12-23")
+
+    def test_reads_price_stops_and_route(self):
+        self.assertEqual(self.row["price_eur"], 981)
+        self.assertEqual(self.row["stops"], 2)
+        self.assertEqual((self.row["origin"], self.row["dest"]), ("BER", "GRU"))
+
+    def test_bare_codes_become_two_layovers_of_unknown_length(self):
+        # The page gives no durations for two-stop rows. Recording the stops
+        # with minutes None keeps them countable without inventing a length.
+        self.assertEqual([l["code"] for l in self.row["layovers"]],
+                         ["CDG", "FOR"])
+        self.assertEqual([l["minutes"] for l in self.row["layovers"]],
+                         [None, None])
+
+    def test_total_duration_is_not_taken_from_a_layover_line(self):
+        self.assertEqual(self.row["total_duration_min"], 24 * 60 + 5)
+
+    def test_emissions_lines_are_not_mistaken_for_carriers(self):
+        self.assertEqual(self.row["carriers"], ("Air France", "Gol"))

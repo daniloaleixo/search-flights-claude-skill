@@ -141,12 +141,18 @@ def backfill_searches(params, missing_origins, best_pairs):
     at its own stop budget before the run may say anything about it.
     """
     out = []
-    rets = return_airports(params)
+    round_trip = params.get("open_jaw", True) is False
+    trip = TRIP_ROUND if round_trip else TRIP_MULTI_CITY
     for origin in missing_origins:
         budget = stop_budget(params, origin)
+        # A round-trip backfill returns to the airport it left from, so its
+        # return list is that origin alone. Taking the configured return
+        # list here would silently turn the search back into a multi-city
+        # one, and multi-city result pages carry no Cheapest tab at all.
+        rets = [origin] if round_trip else return_airports(params)
         for dep, ret in best_pairs:
             out.append(_search(
                 params, f"backfill-{origin}-{dep}-{ret}",
-                dep, ret, [origin], rets, budget,
+                dep, ret, [origin], rets, budget, trip=trip,
             ))
     return out
