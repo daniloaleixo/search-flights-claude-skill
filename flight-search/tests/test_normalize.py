@@ -374,3 +374,77 @@ class TestExpansionCoversEveryOrigin(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+GROUND_PARAMS = {
+    "ground": {
+        "BER": {"eur": 0, "hours": 1.0, "home": True},
+        "AMS": {"eur": 60, "hours": 7.0, "hotel_eur": 120,
+                "first_train": "05:00", "last_train": "19:00"},
+    },
+}
+
+
+def _row(origin, price, night, dep_time="15:00"):
+    return {"origin": origin, "ret_airport": origin, "price_eur": price,
+            "dep_date": "2026-12-23", "dep_time": dep_time,
+            "total_duration_min": 780, "legs_expanded": True,
+            "night_layover": night}
+
+
+class TestGroundBlockPrices(unittest.TestCase):
+    def test_a_real_ticket_price_is_a_point_not_a_band(self):
+        bands = ground_band(GROUND_PARAMS)
+        self.assertEqual(bands["AMS"], (60, 60))
+
+    def test_priced_tickets_win_over_estimated_ones(self):
+        params = dict(GROUND_PARAMS, ground_cost={"AMS": [500, 900]})
+        self.assertEqual(ground_band(params)["AMS"], (60, 60))
+
+
+class TestHotelInTheDoorFigure(unittest.TestCase):
+    def test_an_unreachable_morning_flight_carries_its_hotel(self):
+        rows = [_row("AMS", 900, False, dep_time="07:00")]
+        apply_night_economics(rows, GROUND_PARAMS)
+        self.assertEqual(rows[0]["variants"]["hotels"]["door_lo_eur"], 1140)
+        self.assertEqual(rows[0]["variants"]["no_hotels"]["door_lo_eur"], 1020)
+
+    def test_a_reachable_flight_costs_the_same_in_both_worlds(self):
+        rows = [_row("AMS", 900, False, dep_time="15:00")]
+        apply_night_economics(rows, GROUND_PARAMS)
+        variants = rows[0]["variants"]
+        self.assertEqual(variants["hotels"]["door_lo_eur"],
+                         variants["no_hotels"]["door_lo_eur"])
+
+
+class TestTheTwoWorldsCanDisagree(unittest.TestCase):
+    def rows(self):
+        return [
+            _row("AMS", 900, False, dep_time="07:00"),
+            _row("BER", 1100, False),
+            _row("BER", 950, True),
+        ]
+
+    def test_paying_for_the_bed_moves_the_baseline(self):
+        rows = self.rows()
+        apply_night_economics(rows, GROUND_PARAMS)
+        no_hotels = [r for r in rows if r["variants"]["no_hotels"]["is_baseline"]]
+        hotels = [r for r in rows if r["variants"]["hotels"]["is_baseline"]]
+        self.assertEqual(no_hotels[0]["origin"], "AMS")
+        self.assertEqual(hotels[0]["origin"], "BER")
+
+    def test_the_same_layover_is_judged_both_ways(self):
+        rows = self.rows()
+        apply_night_economics(rows, GROUND_PARAMS)
+        layover = rows[2]["variants"]
+        self.assertEqual(layover["no_hotels"]["night_verdict"], "not_justified")
+        self.assertEqual(layover["hotels"]["night_verdict"], "justified")
+
+    def test_the_plain_fields_hold_the_world_you_pay_in(self):
+        rows = self.rows()
+        apply_night_economics(rows, GROUND_PARAMS)
+        for row in rows:
+            self.assertEqual(row["night_verdict"],
+                             row["variants"]["hotels"]["night_verdict"])
+            self.assertEqual(row["door_lo_eur"],
+                             row["variants"]["hotels"]["door_lo_eur"])

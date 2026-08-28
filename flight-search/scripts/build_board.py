@@ -20,9 +20,12 @@ never a blank and never a zero, because a blank cell reads as cheap and a
 zero reads as free. Both are lies about a number nobody measured.
 """
 
+from datetime import date
 from html import escape as esc
 
-from scripts.normalize import assert_baseline_sound, cost_band
+from scripts.normalize import (
+    VARIANTS, assert_all_variants_sound, cost_band,
+)
 
 MONTH_ABBR = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -50,34 +53,184 @@ NIGHT_LABELS = {
 # matrices
 # --------------------------------------------------------------------------
 
-def _band(trip):
+#: The board is rendered in two worlds: one where a forced night near the
+#: airport is paid for, one where it is not. "hotels" is the default.
+DEFAULT_VARIANT = "hotels"
+
+
+def _view(trip, variant=DEFAULT_VARIANT):
+    """The trip's costed fields in one world, or the plain fields.
+
+    A run made before the two worlds existed has no `variants` block, and
+    falls back to the fields it does have, which renders exactly as it did.
+    """
+    stored = (trip.get("variants") or {}).get(variant)
+    return stored if stored else trip
+
+
+
+SWITCH_JS = """<script>
+(function () {
+  var box = document.getElementById("hotel-switch");
+  if (!box) return;
+  var KEY = "fare-board-hotels";
+  try {
+    if (window.localStorage.getItem(KEY) === "off") box.checked = false;
+  } catch (e) {}
+  box.addEventListener("change", function () {
+    try {
+      window.localStorage.setItem(KEY, box.checked ? "on" : "off");
+    } catch (e) {}
+  });
+})();
+</script>"""
+
+#: Sorting is the reader's, not the page's. Every row ships carrying the
+#: numbers both money columns are ordered on, so a click is a reorder and
+#: never a recount, and the door key is read per world: the same row sorts
+#: at 953 with the beds off and 1023 with them on.
+SORT_JS = """<script>
+(function () {
+  var table = document.querySelector("table.board");
+  if (!table) return;
+  var body = table.tBodies[0];
+  var heads = Array.prototype.slice.call(
+    table.querySelectorAll("th[data-sort-key]"));
+  if (!body || !heads.length) return;
+  var box = document.getElementById("hotel-switch");
+  var rows = Array.prototype.slice.call(body.rows);
+  rows.forEach(function (row, i) { row.setAttribute("data-seq", i); });
+  var active = "fare";
+  var dir = 1;
+
+  function seq(row) { return parseInt(row.getAttribute("data-seq"), 10); }
+
+  function value(row) {
+    var raw;
+    if (active === "fare") {
+      raw = row.getAttribute("data-fare");
+    } else {
+      var world = (box && !box.checked) ? "no_hotels" : "hotels";
+      raw = row.getAttribute("data-door-" + world)
+        || row.getAttribute("data-door-hotels")
+        || row.getAttribute("data-door-no_hotels");
+    }
+    if (raw === null || raw === "") return null;
+    var num = parseFloat(raw);
+    return isNaN(num) ? null : num;
+  }
+
+  function draw() {
+    var order = rows.slice().sort(function (a, b) {
+      var x = value(a), y = value(b);
+      // A row with no figure is not a cheap row: it sinks either way.
+      if (x === null) return y === null ? seq(a) - seq(b) : 1;
+      if (y === null) return -1;
+      return x === y ? seq(a) - seq(b) : (x - y) * dir;
+    });
+    var frag = document.createDocumentFragment();
+    order.forEach(function (row) { frag.appendChild(row); });
+    body.appendChild(frag);
+    heads.forEach(function (th) {
+      th.setAttribute("aria-sort",
+        th.getAttribute("data-sort-key") !== active ? "none"
+          : (dir > 0 ? "ascending" : "descending"));
+    });
+  }
+
+  heads.forEach(function (th) {
+    var key = th.getAttribute("data-sort-key");
+    var button = th.querySelector("button");
+    if (!button) return;
+    button.addEventListener("click", function () {
+      if (key === active) { dir = -dir; } else { active = key; dir = 1; }
+      draw();
+    });
+  });
+
+  if (box) {
+    box.addEventListener("change", function () {
+      if (active === "door") draw();
+    });
+  }
+})();
+</script>"""
+
+
+def _band(trip, variant=DEFAULT_VARIANT):
     """Door-to-door band, or the bare fare when no ground cost was given."""
-    return cost_band(trip)
+    view = _view(trip, variant)
+    if view is trip:
+        return cost_band(trip)
+    low, high = view.get("door_lo_eur"), view.get("door_hi_eur")
+    if low is None or high is None:
+        return (trip["price_eur"], trip["price_eur"])
+    return (low, high)
 
 
 def _money(value, currency="EUR"):
     return f"{value:g} {currency}"
 
 
-def _band_label(trip, currency="EUR"):
+def _band_label(trip, currency="EUR", variant=DEFAULT_VARIANT):
     """`933 to 1173 EUR`, or a single figure when the band is a point."""
-    low, high = _band(trip)
+    low, high = _band(trip, variant)
     if low == high:
         return _money(low, currency)
     return f"{low:g} to {high:g} {currency}"
 
 
-def _door_line(trip, params):
-    """The fare's door-to-door band, spelled out, or why there isn't one."""
+def _door_parts(trip, variant=DEFAULT_VARIANT):
+    """Fare, train, and beds: the three things a door total is made of.
+
+    Train is what is left after the beds, rather than a number of its own,
+    so the parts always add up to the total shown beside them.
+    """
+    view = _view(trip, variant)
+    low, _high = _band(trip, variant)
+    fare = trip.get("price_eur")
+    if view.get("door_lo_eur") is None or fare is None:
+        return None
+    bed = view.get("door_hotel_eur") or 0
+    return {"fare": fare, "train": low - fare - bed, "bed": bed, "total": low}
+
+
+def _bed_phrases(trip):
+    """Where each forced night is spent, in the order it happens."""
+    out = []
+    if trip.get("out_overnight"):
+        out.append(f'a night at {trip.get("origin") or "?"} before the flight')
+    for bed in trip.get("lay_beds") or ():
+        out.append(f'a night at {bed.get("code") or "?"} in transit')
+    if trip.get("ret_overnight"):
+        out.append(f'a night at {trip.get("ret_airport") or "?"} on the way '
+                   f'home')
+    return out
+
+
+def _door_line(trip, params, variant=DEFAULT_VARIANT):
+    """The fare's door-to-door figure, spelled out, or why there isn't one."""
     currency = params.get("currency", "EUR")
-    low, high = _band(trip)
-    if trip.get("door_lo_eur") is None:
+    low, high = _band(trip, variant)
+    parts = _door_parts(trip, variant)
+    if parts is None:
         return "door to door not determined: no ground cost for this airport"
-    if low == high:
+    if low != high:
+        fare = trip["price_eur"]
+        return (f"door to door {low:g} to {high:g} {currency}, "
+                f"ground {low - fare:g} to {high - fare:g} on top")
+    if not parts["train"] and not parts["bed"]:
         return f"door to door {low:g} {currency}, no ground journey either end"
-    fare = trip["price_eur"]
-    return (f"door to door {low:g} to {high:g} {currency}, "
-            f"ground {low - fare:g} to {high - fare:g} on top")
+    bits = []
+    if parts["train"]:
+        bits.append(f'{parts["train"]:g} of train')
+    if parts["bed"]:
+        bits.append(f'{parts["bed"]:g} of beds')
+    line = f'door to door {low:g} {currency}, {" and ".join(bits)} on top'
+    where = _bed_phrases(trip)
+    if parts["bed"] and where:
+        line += ": " + ", ".join(where)
+    return line
 
 
 def _cheaper(current, candidate):
@@ -147,6 +300,48 @@ def _hm(minutes):
     if not minutes:
         return "not determined"
     return f"{int(minutes) // 60}h {int(minutes) % 60:02d}m"
+
+
+def _nights_later(start, end):
+    """Whole days between two ISO dates, and zero when either is missing.
+
+    This is what turns 10:05 and 06:10 into a landing the next morning
+    rather than a flight that arrives before it left.
+    """
+    try:
+        return (date.fromisoformat(str(end))
+                - date.fromisoformat(str(start))).days
+    except (TypeError, ValueError):
+        return 0
+
+
+def _clock_pair(dep, arr, later):
+    """Leaves at, lands at, and how many days later it lands.
+
+    Each clock is local to its own airport, so the pair is not arithmetic
+    anyone can do in their head: the duration column is the honest length
+    of the flight, and this is only when to be where.
+    """
+    if not dep or not arr:
+        return ""
+    tail = f'<sup class="when-plus">+{later}</sup>' if later > 0 else ""
+    return (f'<span class="when-time">{esc(str(dep))}'
+            f'<span class="when-arrow" aria-hidden="true">&#8594;</span>'
+            f'{esc(str(arr))}{tail}</span>')
+
+
+def _when_cell(day, dep, arr, later, missing):
+    """A date with its two clock times under it, or with why they are absent.
+
+    An unopened return still has a date, because the search asked for one;
+    what it does not have is times, and saying so is not the same as
+    leaving the cell looking complete.
+    """
+    times = _clock_pair(dep, arr, later)
+    if not times:
+        times = f'<span class="when-nd">{esc(missing)}</span>'
+    return (f'<td class="b-when"><span class="when-day">{esc(_day(day))}</span>'
+            f"{times}</td>")
 
 
 def _stops(count):
@@ -336,17 +531,84 @@ def _ramp_legend(domain, note=""):
     )
 
 
-def _night_pill(trip):
+def _clock(stamp):
+    return stamp[11:16] if stamp else ""
+
+
+def _hours_label(minutes):
+    """`29h` — the reader wants the shape of the day, not the minute."""
+    if not minutes:
+        return "not determined"
+    return f"{round(minutes / 60)}h"
+
+
+def _journey_line(trip):
+    """When the traveller leaves, when they get back, and how long it takes.
+
+    The flight duration is the smaller half of an Amsterdam trip. This line
+    is the other half, and it says outright when the return end was never
+    opened rather than leaving a gap that reads as nothing to report.
+    """
+    parts = []
+    if trip.get("out_home_dep"):
+        parts.append(
+            f'out: leave home {_clock(trip["out_home_dep"])} on '
+            f'{_day(trip["out_home_dep"][:10])}, '
+            f'{_hours_label(trip.get("out_door_min"))} door to door')
+    if trip.get("ret_home_arr"):
+        parts.append(
+            f'back: home {_clock(trip["ret_home_arr"])} on '
+            f'{_day(trip["ret_home_arr"][:10])}, '
+            f'{_hours_label(trip.get("ret_door_min"))} door to door')
+    elif trip.get("out_home_dep"):
+        parts.append("back: the return end has not been opened")
+    return " &#183; ".join(parts)
+
+
+def _overnight_pills(trip, variant=DEFAULT_VARIANT):
+    """Nights the journey forces, and the end nobody checked.
+
+    The night itself never depends on the switch. Only its price does, so
+    the cost drops out of the label in the world where the bed is free and
+    the warning stays exactly where it was.
+    """
+    out = []
+
+    def pill(cls, glyph, label):
+        out.append(f'<span class="pill pill--{cls}">'
+                   f'<span class="pill-glyph" aria-hidden="true">{glyph}</span>'
+                   f'{esc(label)}</span>')
+
+    def cost(value):
+        if variant == DEFAULT_VARIANT and value:
+            return f", {value:g} EUR"
+        return ""
+
+    if trip.get("out_overnight"):
+        pill("overnight", "&#9788;",
+             f'night before the flight at {trip.get("origin") or "?"}'
+             f'{cost(trip.get("out_hotel_eur"))}')
+    if trip.get("ret_overnight"):
+        pill("overnight", "&#9788;",
+             f'night at {trip.get("ret_airport") or "?"} before the train '
+             f'home{cost(trip.get("ret_hotel_eur"))}')
+    if trip.get("ret_overnight") is None:
+        pill("unchecked", "?", "return end not opened, so not judged")
+    return "".join(out)
+
+
+def _night_pill(trip, variant=DEFAULT_VARIANT):
     """Verdict as a pill. Every verdict gets its own shape and its own words.
 
     "not checked" deliberately shares nothing with "clean": no fill, a
     dashed hairline, muted ink. A trip nobody examined must never read like
     a trip that passed.
     """
-    verdict = trip.get("night_verdict", "unknown")
+    view = _view(trip, variant)
+    verdict = view.get("night_verdict", "unknown")
     label = NIGHT_LABELS.get(verdict, "not checked")
-    low = trip.get("night_saving_eur")
-    high = trip.get("night_saving_hi_eur")
+    low = view.get("night_saving_eur")
+    high = view.get("night_saving_hi_eur")
     if verdict == "justified" and low is not None:
         label = f"night layover, saves {low:g} EUR door to door"
     if verdict == "borderline" and low is not None and high is not None:
@@ -417,24 +679,68 @@ def _scroller(inner, extra=""):
 # sections
 # --------------------------------------------------------------------------
 
+SWITCH_INPUT = '<input type="checkbox" id="hotel-switch" checked>'
+
+
+def _worlds(trips):
+    """The variants this run actually carries, in rendering order."""
+    return [name for name in VARIANTS
+            if any((t.get("variants") or {}).get(name) for t in trips)]
+
+
+def _door_stat(trips, params, variant):
+    """The cheapest trip from the front door, in one of the two worlds."""
+    currency = esc(params.get("currency", "EUR"))
+    priced = [t for t in trips if t.get("price_eur") is not None]
+    door = min(priced, key=lambda t: _band(t, variant)[0], default=None)
+    if door is None or _view(door, variant).get("door_lo_eur") is None:
+        value = '<span class="hero-num nd-hero">not determined</span>'
+        note = "no ground costs were given"
+    else:
+        low, high = _band(door, variant)
+        unit = currency if low == high else f'to {high:g} {currency}'
+        value = (f'<span class="hero-num">{low:g}</span>'
+                 f'<span class="hero-unit">{unit}</span>')
+        hotel = _view(door, variant).get("door_hotel_eur") or 0
+        extra = low - door["price_eur"]
+        if not extra:
+            tail = "and no ground journey either end"
+        elif hotel:
+            tail = (f'plus {extra - hotel:g} of train and {hotel:g} '
+                    f'for a night near the airport')
+        else:
+            tail = f'plus {extra:g} of train at both ends'
+        note = (f'{esc(str(door.get("origin") or "?"))}, fare '
+                f'{door.get("price_eur")} {tail}')
+    return (f'<div class="stat stat--hero v-{esc(variant)}">'
+            f'<p class="stat-label">Cheapest door to door</p>'
+            f'<p class="stat-value">{value}</p>'
+            f'<p class="stat-note">{note}</p></div>')
+
+
+#: The checkbox itself lives at the top of .page, not here, so the CSS can
+#: reach the rest of the page as its later siblings. This is only its label.
+SWITCH = (
+    '<div class="switch">'
+    '<p class="switch-eyebrow">What you are looking at</p>'
+    '<label class="switch-label" for="hotel-switch">'
+    '<span class="switch-box" aria-hidden="true"></span>'
+    '<span class="switch-text">Count the hotel when a flight is out of '
+    'reach on the day</span></label>'
+    '<p class="switch-note">Uncheck it if the bed is free or discounted. '
+    'The night still costs you the night either way: only the money moves, '
+    'never the hours.</p></div>'
+)
+
+
 def _masthead(trips, params, cheapest, domain):
     dest = params.get("dest_name") or params.get("dest") or "the destination"
     expanded = sum(1 for t in trips if t.get("legs_expanded"))
     checked = sum(1 for t in trips
                   if t.get("night_verdict") not in (None, "unknown"))
-    priced = [t for t in trips if t.get("price_eur") is not None]
-    door = min(priced, key=lambda t: _band(t)[0], default=None)
-    if door is not None and door.get("door_lo_eur") is not None:
-        low_d, high_d = _band(door)
-        unit = (esc(params.get("currency", "EUR")) if low_d == high_d
-                else f'to {high_d:g} {esc(params.get("currency", "EUR"))}')
-        door_value = (f'<span class="hero-num">{low_d:g}</span>'
-                      f'<span class="hero-unit">{unit}</span>')
-        door_note = (f'{esc(str(door.get("origin") or "?"))}, fare '
-                     f'{door.get("price_eur")} plus the train at both ends')
-    else:
-        door_value = '<span class="hero-num nd-hero">not determined</span>'
-        door_note = "no ground costs were given"
+    worlds = _worlds(trips) or [DEFAULT_VARIANT]
+    door_stats = "".join(_door_stat(trips, params, name) for name in worlds)
+    switch = SWITCH if len(worlds) > 1 else ""
     if cheapest:
         hero = (f'<span class="hero-num">{cheapest["price_eur"]}</span>'
                 f'<span class="hero-unit">{esc(params.get("currency", "EUR"))}'
@@ -459,9 +765,7 @@ def _masthead(trips, params, cheapest, domain):
         f'<div class="stat stat--hero"><p class="stat-label">Cheapest fare '
         f'found</p><p class="stat-value">{hero}</p>'
         f'<p class="stat-note">{hero_note}</p></div>'
-        f'<div class="stat stat--hero"><p class="stat-label">Cheapest door '
-        f'to door</p><p class="stat-value">{door_value}</p>'
-        f'<p class="stat-note">{door_note}</p></div>'
+        f'{door_stats}'
         f'<div class="stat"><p class="stat-label">Fares on the board</p>'
         f'<p class="stat-value"><span class="hero-num">{len(trips)}</span></p>'
         f'<p class="stat-note">spread {low} to {high} '
@@ -470,7 +774,7 @@ def _masthead(trips, params, cheapest, domain):
         f'<p class="stat-value"><span class="hero-num">{expanded}</span>'
         f'<span class="hero-unit">of {len(trips)}</span></p>'
         f'<p class="stat-note">{checked} have a night-layover verdict</p>'
-        '</div></div></header>'
+        f'</div></div>{switch}</header>'
     )
 
 
@@ -623,13 +927,21 @@ def _airport_section(trips, origins, rets, domain, open_jaw=True):
     )
 
 
-def _candidates(trips):
+def _candidates(trips, variant=DEFAULT_VARIANT):
     """Pick candidates by the role each one plays, not by rank alone.
 
     A list of the four cheapest fares mostly repeats itself. These four
     questions do not: what is cheapest, what is cheapest with a night nobody
     has to spend in a terminal, what a night in a terminal is actually
     worth, and what gets there soonest.
+
+    "Soonest" is measured from the front door. Air time made a Frankfurt
+    flight look quicker than a Berlin one while ignoring the four and a half
+    hours of train in front of it.
+
+    The whole shortlist is recomputed per world, because the switch can
+    change which trip is cheapest, which is clean, and which layover pays
+    for itself.
     """
     picks = []
 
@@ -642,83 +954,189 @@ def _candidates(trips):
                 return
         picks.append({"trip": trip, "why": [why]})
 
+    def verdict(trip):
+        return _view(trip, variant).get("night_verdict")
+
     priced = [t for t in trips if t.get("price_eur") is not None]
 
     def by_door(rows):
-        return min(rows, key=lambda t: _band(t)[0], default=None)
+        return min(rows, key=lambda t: _band(t, variant)[0], default=None)
 
     add(by_door(priced), "cheapest door to door")
     add(min(priced, key=lambda t: t["price_eur"], default=None),
         "cheapest fare on the board")
-    clean = [t for t in priced if t.get("night_verdict") == "clean"]
-    add(by_door(clean), "cheapest with no night layover")
-    justified = [t for t in priced if t.get("night_verdict") == "justified"]
-    add(by_door(justified), "night layover that pays for itself")
-    borderline = [t for t in priced if t.get("night_verdict") == "borderline"]
-    add(by_door(borderline), "night layover the ground fare decides")
-    timed = [t for t in priced if t.get("total_duration_min")]
-    add(min(timed, key=lambda t: t["total_duration_min"], default=None),
-        "shortest in the air")
+    add(by_door([t for t in priced if verdict(t) == "clean"]),
+        "cheapest with no night layover")
+    add(by_door([t for t in priced if verdict(t) == "justified"]),
+        "night layover that pays for itself")
+    add(by_door([t for t in priced if verdict(t) == "borderline"]),
+        "night layover the ground fare decides")
+    door_timed = [t for t in priced if t.get("out_door_min")]
+    if door_timed:
+        add(min(door_timed, key=lambda t: t["out_door_min"]),
+            "shortest door to door")
+    else:
+        timed = [t for t in priced if t.get("total_duration_min")]
+        add(min(timed, key=lambda t: t["total_duration_min"], default=None),
+            "shortest in the air")
     return picks
 
 
+def _card(pick, params, colors, notes, dest, variant):
+    trip = pick["trip"]
+    origin = str(trip.get("origin") or "?")
+    back_to = trip.get("ret_airport") or None
+    ret_label = (esc(str(back_to)) if back_to
+                 else '<span class="nd nd--inline">not determined</span>')
+    why = "".join(f'<span class="why">{esc(reason)}</span>'
+                  for reason in pick["why"])
+    journey = _journey_line(trip)
+    journey_line = (f'<p class="card-journey">{journey}</p>' if journey else "")
+    overnight = _overnight_pills(trip, variant)
+    overnight_line = (f'<p class="card-line">{overnight}</p>'
+                      if overnight else "")
+    door_fact = (f'<div><dt>Door to door</dt>'
+                 f'<dd>{esc(_hours_label(trip.get("out_door_min")))}</dd>'
+                 f'</div>' if trip.get("out_door_min") else "")
+    return (
+        '<article class="card">'
+        f'<div class="card-why">{why}</div>'
+        '<div class="card-head">'
+        f'<p class="card-route"><span class="code">{esc(origin)}</span>'
+        f'<span class="arrow" aria-hidden="true">&#8594;</span>'
+        f'<span class="code">{esc(str(trip.get("dest") or dest))}</span>'
+        '</p>'
+        f'<p class="card-price">{trip.get("price_eur")}'
+        f'<span class="card-unit">'
+        f'{esc(params.get("currency", "EUR"))}</span></p></div>'
+        f'<p class="card-door">{esc(_door_line(trip, params, variant))}</p>'
+        f'{journey_line}'
+        '<dl class="facts">'
+        f'<div><dt>Out</dt><dd>{esc(_day(trip.get("dep_date")))}</dd></div>'
+        f'<div><dt>Back</dt><dd>{esc(_day(trip.get("ret_date")))}</dd></div>'
+        f'<div><dt>Stops</dt><dd>{esc(_stops(trip.get("stops")))}</dd></div>'
+        f'<div><dt>In the air</dt>'
+        f'<dd>{esc(_hm(trip.get("total_duration_min")))}</dd></div>'
+        f'{door_fact}'
+        f'<div><dt>Lands back at</dt><dd>{ret_label}</dd></div>'
+        '</dl>'
+        f'<p class="card-line">{_carrier_chips(trip, colors)}</p>'
+        f'<p class="card-line">{_night_pill(trip, variant)}</p>'
+        f'{overnight_line}'
+        '<dl class="ground">'
+        f'<div><dt>Ground at {esc(origin)}</dt>'
+        f'<dd>{esc(_ground(notes, origin))}</dd></div>'
+        f'<div><dt>Ground at {esc(str(trip.get("dest") or dest))}</dt>'
+        f'<dd>{esc(_ground(notes, trip.get("dest") or dest))}</dd></div>'
+        '</dl>'
+        f'<p class="card-go">{_link(trip)}</p>'
+        '</article>')
+
+
 def _candidate_section(trips, params, colors, notes, dest):
-    picks = _candidates(trips)
-    if not picks:
+    """The shortlist, rendered once per world, with one of them hidden.
+
+    Both are computed here in Python and shipped complete. The switch on the
+    page only changes which is displayed: nothing in the browser adds a
+    number to another number, so the board still shows only figures this
+    script worked out.
+    """
+    worlds = _worlds(trips) or [DEFAULT_VARIANT]
+    blocks = []
+    for variant in worlds:
+        picks = _candidates(trips, variant)
+        if not picks:
+            continue
+        cards = "".join(_card(pick, params, colors, notes, dest, variant)
+                        for pick in picks)
+        blocks.append(f'<div class="cards v-{esc(variant)}">{cards}</div>')
+    if not blocks:
         return _section("Shortlist", "The candidates",
                         "No fare qualified for the shortlist.",
                         '<p class="nd-block">not determined</p>')
-    cards = []
-    for pick in picks:
-        trip = pick["trip"]
-        origin = str(trip.get("origin") or "?")
-        back_to = trip.get("ret_airport") or None
-        ret_label = (esc(str(back_to)) if back_to
-                     else '<span class="nd nd--inline">not determined</span>')
-        why = "".join(f'<span class="why">{esc(reason)}</span>'
-                      for reason in pick["why"])
-        cards.append(
-            '<article class="card">'
-            f'<div class="card-why">{why}</div>'
-            '<div class="card-head">'
-            f'<p class="card-route"><span class="code">{esc(origin)}</span>'
-            f'<span class="arrow" aria-hidden="true">&#8594;</span>'
-            f'<span class="code">{esc(str(trip.get("dest") or dest))}</span>'
-            '</p>'
-            f'<p class="card-price">{trip.get("price_eur")}'
-            f'<span class="card-unit">'
-            f'{esc(params.get("currency", "EUR"))}</span></p></div>'
-            f'<p class="card-door">{esc(_door_line(trip, params))}</p>'
-            '<dl class="facts">'
-            f'<div><dt>Out</dt><dd>{esc(_day(trip.get("dep_date")))}</dd></div>'
-            f'<div><dt>Back</dt><dd>{esc(_day(trip.get("ret_date")))}</dd></div>'
-            f'<div><dt>Stops</dt><dd>{esc(_stops(trip.get("stops")))}</dd></div>'
-            f'<div><dt>Duration</dt>'
-            f'<dd>{esc(_hm(trip.get("total_duration_min")))}</dd></div>'
-            f'<div><dt>Lands back at</dt><dd>{ret_label}</dd></div>'
-            '</dl>'
-            f'<p class="card-line">{_carrier_chips(trip, colors)}</p>'
-            f'<p class="card-line">{_night_pill(trip)}</p>'
-            '<dl class="ground">'
-            f'<div><dt>Ground at {esc(origin)}</dt>'
-            f'<dd>{esc(_ground(notes, origin))}</dd></div>'
-            f'<div><dt>Ground at {esc(str(trip.get("dest") or dest))}</dt>'
-            f'<dd>{esc(_ground(notes, trip.get("dest") or dest))}</dd></div>'
-            '</dl>'
-            f'<p class="card-go">{_link(trip)}</p>'
-            '</article>')
     return _section(
         "Shortlist",
         "The candidates",
         "Each one here for a different reason. The fare is what Google "
-        "returned; the line under it adds the train at both ends, which is "
-        "why the cheapest fare and the cheapest trip are not always the "
-        "same row.",
-        '<div class="cards">' + "".join(cards) + "</div>",
+        "returned; the line under it adds the train at both ends, and the "
+        "hotel when the flight is too early to reach on the day. That is why "
+        "the cheapest fare and the cheapest trip are not always the same row.",
+        "".join(blocks),
     )
 
 
+def _door_cell(trip, variant):
+    """The trip's door-to-door total in one world, broken into its parts.
+
+    The parenthesis is there because a 1076 beside a fare of 882 otherwise
+    reads as an unexplained 194, and the reader cannot tell a long train
+    from a paid-for night.
+    """
+    view = _view(trip, variant)
+    low, high = _band(trip, variant)
+    if view.get("door_lo_eur") is None:
+        inner = '<span class="nd nd--inline">not determined</span>'
+    else:
+        text = f'{low:g}' if low == high else f'{low:g}&#8211;{high:g}'
+        inner = f'<span class="door-num">{text}</span>'
+        parts = _door_parts(trip, variant) if low == high else None
+        if parts and (parts["train"] or parts["bed"]):
+            bits = []
+            if parts["train"]:
+                bits.append(f'<span class="door-part">+{parts["train"]:g} '
+                            f'train</span>')
+            if parts["bed"]:
+                where = _bed_phrases(trip)
+                title = (f' title="{esc("; ".join(where))}"' if where else "")
+                bits.append(f'<span class="door-part door-bed"{title}>'
+                            f'+{parts["bed"]:g} bed</span>')
+            inner += ('<span class="door-split">('
+                      + '<span class="door-sep">, </span>'.join(bits)
+                      + ')</span>')
+    return f'<span class="swap v-{esc(variant)}">{inner}</span>'
+
+
+def _sort_keys(trip, worlds):
+    """The numbers a row is sorted on, carried on the row itself.
+
+    Both worlds ship, because the door figure a click sorts on depends on
+    whether the beds are being counted. A row with no figure carries no
+    attribute at all rather than a zero, which would sort it to the top of
+    a cheapest-first board as the best trip in the run.
+    """
+    price = trip.get("price_eur")
+    out = "" if price is None else f' data-fare="{price:g}"'
+    for name in worlds:
+        low, _high = _band(trip, name)
+        if low is not None:
+            out += f' data-door-{esc(name)}="{low:g}"'
+    return out
+
+
+def _sort_head(label, key, active=False):
+    """A column header that is also the control that reorders by it.
+
+    Fare ships marked ascending because the rows really are in that order
+    before anyone clicks anything, and a header that announced "none" over
+    a sorted column would be describing a different table.
+    """
+    return (f'<th scope="col" class="th-sort" '
+            f'aria-sort="{"ascending" if active else "none"}" '
+            f'data-sort-key="{esc(key)}">'
+            f'<button type="button" class="sort-btn">{esc(label)}'
+            f'<span class="sort-mark" aria-hidden="true"></span>'
+            "</button></th>")
+
+
+def _swap_cells(trip, worlds, render_one):
+    """One cell's contents per world, all shipped, one shown."""
+    if len(worlds) < 2:
+        return render_one(trip, worlds[0] if worlds else DEFAULT_VARIANT)
+    return "".join(render_one(trip, name) for name in worlds)
+
+
 def _board_section(trips, colors, domain, dest):
+    worlds = _worlds(trips) or [DEFAULT_VARIANT]
     rows = []
     for trip in _sorted_trips(trips):
         price = trip.get("price_eur")
@@ -728,9 +1146,17 @@ def _board_section(trips, colors, domain, dest):
                       else '<td class="b-price"><span class="nd">not '
                            'determined</span></td>')
         back_to = trip.get("ret_airport")
+        door_cell = ('<td class="b-door">'
+                     + _swap_cells(trip, worlds, _door_cell) + "</td>")
+        night_cell = (
+            '<td>' + _swap_cells(
+                trip, worlds,
+                lambda t, v: f'<span class="swap v-{esc(v)}">'
+                             f'{_night_pill(t, v)}</span>') + "</td>")
         rows.append(
-            "<tr>"
+            f"<tr{_sort_keys(trip, worlds)}>"
             + price_cell
+            + door_cell
             + f'<td class="b-route"><span class="code">'
               f'{esc(str(trip.get("origin") or "?"))}</span>'
               f'<span class="arrow" aria-hidden="true">&#8594;</span>'
@@ -741,12 +1167,20 @@ def _board_section(trips, colors, domain, dest):
                if back_to else '<span class="nd nd--inline">not '
                                'determined</span>')
             + "</td>"
-            + f'<td>{esc(_day(trip.get("dep_date")))}</td>'
-            + f'<td>{esc(_day(trip.get("ret_date")))}</td>'
+            + _when_cell(trip.get("dep_date"), trip.get("dep_time"),
+                         trip.get("arr_time"),
+                         _nights_later(trip.get("dep_date"),
+                                       trip.get("arr_date")),
+                         "times not captured")
+            + _when_cell(trip.get("ret_date"), trip.get("ret_dep_time"),
+                         trip.get("ret_arr_time"),
+                         _nights_later(trip.get("ret_dep_date"),
+                                       trip.get("ret_arr_date")),
+                         "times not opened")
             + f'<td>{esc(_stops(trip.get("stops")))}</td>'
             + f'<td class="num">{esc(_hm(trip.get("total_duration_min")))}</td>'
             + f'<td>{_carrier_chips(trip, colors)}</td>'
-            + f'<td>{_night_pill(trip)}</td>'
+            + night_cell
             + f'<td>{_layover_chips(trip)}</td>'
             + f'<td>{_link(trip)}</td>'
             + "</tr>")
@@ -768,8 +1202,11 @@ def _board_section(trips, colors, domain, dest):
 
     table = (
         '<table class="board"><caption class="sr-only">Every fare captured, '
-        'cheapest first</caption><thead><tr>'
-        '<th scope="col">Fare</th><th scope="col">Route</th>'
+        'cheapest first; the fare and door-to-door columns can be '
+        'reordered</caption><thead><tr>'
+        + _sort_head("Fare", "fare", active=True)
+        + _sort_head("Door to door", "door")
+        + '<th scope="col">Route</th>'
         '<th scope="col">Lands back at</th>'
         '<th scope="col">Out</th><th scope="col">Back</th>'
         '<th scope="col">Stops</th><th scope="col">Duration</th>'
@@ -779,9 +1216,16 @@ def _board_section(trips, colors, domain, dest):
     return _section(
         "The board",
         "Every fare captured",
-        "Cheapest first. A night layover does not disqualify a fare, it "
-        "obliges it to be considerably cheaper; the night column says whether "
-        "it is, or says that nobody checked.",
+        "Cheapest first by fare, and either money column reorders the "
+        "board when you click its heading: once for cheapest first, again "
+        "for dearest. Under each date is when the flight leaves and when "
+        "it lands, on the local clock at each end. The column beside the "
+        "fare is what the trip "
+        "costs from your front door: the fare plus the train at both ends, "
+        "plus a night near the airport where the flight is too early to "
+        "reach on the day, which is marked +bed. A night layover does not "
+        "disqualify a fare, it obliges it to be considerably cheaper; the "
+        "night column says whether it is, or says that nobody checked.",
         legend_block + _scroller(table, " scroller--board"),
     )
 
@@ -880,6 +1324,18 @@ def _caveats_section(trips, params, origins, coverage):
             "return airport until the itinerary is expanded, so the return "
             'column is "not determined" for every row nobody opened, and the '
             "airport by airport grid stays mostly unfilled.</p></li>")
+    opened = sum(1 for t in trips if t.get("ret_dep_time"))
+    items.append(
+        "<li><h3>Which clock the times are on</h3><p>The out and back "
+        "columns carry the departure and arrival times, and each one is "
+        "local to its own airport: a flight that leaves at 10:05 and lands "
+        'at 06:10 marked "+1" lands the next morning, and the gap between '
+        "the two clocks is not the length of the flight. The duration "
+        "column is that. The outbound times come with every row Google "
+        f"returned. The return times only exist for the {opened} of "
+        f"{len(trips)} rows whose return end was actually opened; the rest "
+        'say "times not opened", which is why nobody knows them, not a '
+        "claim that the flight has none.</p></li>")
     banded = [t for t in trips if t.get("door_lo_eur") is not None]
     if banded:
         no_band = sorted({t.get("origin") for t in trips
@@ -888,17 +1344,87 @@ def _caveats_section(trips, params, origins, coverage):
                " No ground cost was given for "
                f"{esc(', '.join(no_band))}, so rows from there carry a fare "
                "and no door-to-door figure at all.")
+        priced_ground = bool(params.get("ground"))
+        source = ("The train fares are the ones the traveller quoted and are "
+                  "treated as prices, not estimates, so the door-to-door "
+                  "figure is a single number rather than a range."
+                  if priced_ground else
+                  "The estimates come from references/ground.md and are "
+                  "rough; a booked train ticket beats them.")
         items.append(
-            "<li><h3>The ground journey is an estimate, and it is not in the "
-            "fare</h3><p>Every fare on this board is a number Google returned "
-            "and nothing has been added to it. Beside it sits the "
-            "door-to-door band: that fare plus the train at both ends, at the "
-            "cheap end and the dear end of the estimate. Comparisons here "
-            "read the band, not the fare, because an airport six hours away "
-            "sells a fare that is not the price of going there. "
-            f"{len(banded)} of {len(trips)} rows have a band.{gap} The "
-            "estimates come from references/ground.md and are rough; a booked "
-            "train ticket beats them.</p></li>")
+            "<li><h3>The ground journey is not in the fare</h3><p>Every fare "
+            "on this board is a number Google returned and nothing has been "
+            "added to it. Beside it sits the door-to-door figure: that fare "
+            "plus the train at both ends, and a hotel where the flight "
+            "cannot be reached on the day. Comparisons here read that "
+            "figure, not the fare, because an airport six hours away sells a "
+            "fare that is not the price of going there. "
+            f"{len(banded)} of {len(trips)} rows have one.{gap} "
+            f"{source}</p></li>")
+    ground = params.get("ground") or {}
+    if ground:
+        clocks = ", ".join(
+            f'{code} {entry["eur"]:g} EUR and {float(entry["hours"]):g}h'
+            + ("" if entry.get("home")
+               else f', hotel {entry.get("hotel_eur", 0):g}')
+            for code, entry in sorted(ground.items()))
+        timing_block = params.get("ground_timing") or {}
+        items.append(
+            "<li><h3>What the train and the hotel are assumed to cost</h3>"
+            f"<p>{esc(clocks)}. Hours are front door to terminal, so they "
+            "include getting across town at both ends. A flight counts as "
+            "out of reach on the day when leaving home in time for it would "
+            "mean a train before the first one; coming back, when landing "
+            f"leaves less than {timing_block.get('disembark_hours', 1.5):g}h "
+            "before the last train home. The hotel figures are estimates, "
+            "which is why the switch at the top exists: turn it off and "
+            "every figure on the board is recomputed without them. The "
+            "hours never change with it. A night spent near the airport is "
+            "spent whoever paid for the bed.</p></li>")
+    lay = params.get("layover_hotel") or {}
+    bedded = [t for t in trips if t.get("lay_hotel_eur")]
+    if lay:
+        listed = ", ".join(f"{code} {price:g}"
+                           for code, price in sorted((lay.get("eur") or {}).items()))
+        fallback = lay.get("default_eur")
+        tail = (f" Anywhere else is assumed to cost {fallback:g}."
+                if fallback is not None else
+                " An airport not listed carries no bed at all, because an "
+                "unpriced bed is unknown rather than free.")
+        items.append(
+            "<li><h3>A night in transit is a night too</h3><p>A layover that "
+            "runs through the night and lasts at least "
+            f"{lay.get('min_hours', 8):g} hours is priced as a bed, not as "
+            "time in a terminal, and that cost sits in the door-to-door "
+            f"figure with everything else. {len(bedded)} rows carry one. "
+            f"Assumed prices: {esc(listed)}.{tail} Shorter night layovers "
+            "carry nothing: leaving the airport and coming back is not worth "
+            "it, so they stay a hard night in a seat, which the night "
+            "verdict already judges. The switch at the top turns these off "
+            "with the others.</p></li>")
+    early = [t for t in trips if t.get("out_overnight")]
+    if early:
+        listed = ", ".join(
+            f'{t.get("origin") or "?"} {t.get("dep_time") or "?"}'
+            for t in _sorted_trips(early)[:8])
+        items.append(
+            "<li><h3>Flights you cannot reach on the day</h3><p>"
+            f"{len(early)} rows depart too early to get to by train that "
+            "morning, so they carry the evening before and a night near the "
+            f"airport: {esc(listed)}"
+            f"{'&#8230;' if len(early) > 8 else ''}. Those hours are inside "
+            "the door-to-door duration whether or not the bed is paid "
+            "for.</p></li>")
+    unopened = [t for t in trips if t.get("ret_overnight") is None]
+    if unopened and len(unopened) != len(trips):
+        items.append(
+            "<li><h3>Return ends nobody opened</h3><p>A search result row "
+            "describes the outbound flight only: the return times live "
+            "behind a second click. "
+            f"{len(unopened)} of {len(trips)} rows still have no return "
+            "arrival, so nothing has been judged about getting home from "
+            "them, and they carry no hotel at that end. That is an unknown, "
+            "not an all-clear.</p></li>")
     borderline = [t for t in trips if t.get("night_verdict") == "borderline"]
     if borderline:
         listed = ", ".join(
@@ -1512,6 +2038,19 @@ table { border-collapse: separate; border-spacing: 0; width: 100%; }
 .board tbody tr:last-child td { border-bottom: 0; }
 .board tbody tr:hover td { background: var(--surface-2); }
 .board .num { font-variant-numeric: tabular-nums; }
+.b-when { line-height: 1.3; }
+.when-day { display: block; }
+.when-time, .when-nd {
+  display: block; margin-top: 2px;
+  font-size: 0.72rem; color: var(--muted);
+}
+.when-time {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.when-arrow { margin: 0 4px; opacity: 0.55; }
+.when-plus { font-size: 0.8em; margin-left: 1px; }
+.when-nd { opacity: 0.75; }
 .b-price { padding-left: 12px; }
 .chip {
   display: inline-block;
@@ -1545,7 +2084,116 @@ table { border-collapse: separate; border-spacing: 0; width: 100%; }
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* the two worlds ---------------------------------------------------- */
+/* Both are rendered in full and one is hidden. Nothing in the browser
+   computes a price; the switch only chooses which set of figures shows.
+
+   The switch is CSS, not script, so the board still toggles where inline
+   JavaScript never runs. The checkbox is the first child of .page and the
+   rules reach the rest of the page as its later siblings. An earlier
+   version used .page:has(#hotel-switch:not(:checked)), which asks the
+   browser to re-evaluate a subject holding all 462 rows and rendered a
+   blank page instead of a board. */
+.v-no_hotels { display: none; }
+#hotel-switch { position: absolute; opacity: 0; width: 0; height: 0; }
+#hotel-switch:not(:checked) ~ * .v-hotels { display: none; }
+#hotel-switch:not(:checked) ~ * .cards.v-no_hotels { display: grid; }
+#hotel-switch:not(:checked) ~ * .stat.v-no_hotels { display: block; }
+#hotel-switch:not(:checked) ~ * .swap.v-no_hotels { display: inline; }
+.b-door { padding-left: 12px; }
+.door-num {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.86rem;
+}
+.door-split {
+  margin-left: 7px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.door-bed { color: var(--serious); }
+
+.switch {
+  margin-top: 18px;
+  padding: 16px 18px;
+  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--serious);
+}
+.switch-eyebrow {
+  margin: 0 0 10px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.switch-label {
+  display: flex; align-items: center; gap: 10px;
+  cursor: pointer; font-size: 0.9rem; color: var(--ink);
+}
+.switch-box {
+  flex: none; width: 15px; height: 15px;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  box-shadow: inset 0 0 0 3px var(--surface);
+}
+#hotel-switch:not(:checked) ~ * .switch-box {
+  background: var(--surface); border-color: var(--rule); box-shadow: none;
+}
+#hotel-switch:focus-visible ~ * .switch-box {
+  outline: 2px solid var(--serious); outline-offset: 2px;
+}
+.switch-note {
+  margin: 8px 0 0 25px; font-size: 0.8rem; color: var(--muted);
+  max-width: 62ch;
+}
+
+.pill--overnight {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--serious) 14%, var(--surface));
+  border-color: color-mix(in srgb, var(--serious) 50%, var(--surface));
+}
+.pill--overnight .pill-glyph { color: var(--serious); }
+.pill--unchecked {
+  color: var(--muted);
+  background: transparent;
+  border: 1px dashed var(--rule);
+}
+.card-journey {
+  margin: -8px 0 14px; font-size: 12.5px; line-height: 1.5;
+  color: var(--muted);
+}
+
+/* Sortable headings. The arrow is drawn from aria-sort, so the glyph and
+   the thing a screen reader announces can never drift apart. */
+.board th.th-sort { padding: 0; }
+.sort-btn {
+  display: flex; align-items: center; gap: 5px;
+  width: 100%; padding: 9px 12px;
+  font: inherit; color: inherit; letter-spacing: inherit;
+  text-transform: inherit; text-align: left;
+  background: none; border: 0; cursor: pointer;
+}
+.sort-btn:hover { color: var(--ink); }
+.sort-btn:focus-visible { outline: 2px solid var(--serious); outline-offset: -2px; }
+/* The triangle is drawn, not typed: the arrow codepoints are missing from
+   the condensed face and came out as tofu boxes on the first build. */
+.sort-mark {
+  width: 0; height: 0;
+  border-left: 3.5px solid transparent;
+  border-right: 3.5px solid transparent;
+  border-bottom: 5px solid currentColor;
+}
+.th-sort[aria-sort="none"] .sort-mark { opacity: 0.3; }
+.th-sort[aria-sort="descending"] .sort-mark {
+  border-bottom: 0; border-top: 5px solid currentColor;
+}
+.th-sort:not([aria-sort="none"]) { color: var(--ink); }
 </style>
+
 """
 
 
@@ -1574,8 +2222,9 @@ def render(trips, params, coverage=None):
     cheapest = min(priced, key=lambda t: t["price_eur"], default=None)
     # Refuses rather than renders: a baseline some unexpanded trip undercuts
     # makes every night verdict on the page wrong in the same direction, and
-    # a board is not the place to find that out.
-    assert_baseline_sound(trips)
+    # a board is not the place to find that out. Checked in both worlds,
+    # because the switch moves the baseline.
+    assert_all_variants_sound(trips)
 
     title = f"{params.get('dest_name') or dest} Fare Board"
 
@@ -1584,6 +2233,7 @@ def render(trips, params, coverage=None):
         FONTS,
         CSS,
         '<main class="page">',
+        (SWITCH_INPUT if len(_worlds(trips)) > 1 else ""),
         _masthead(trips, params, cheapest, domain),
         _origin_section(trips, origins, pairs, domain, cheapest),
         _coverage_section(trips, origins, coverage, domain),
@@ -1593,6 +2243,8 @@ def render(trips, params, coverage=None):
         _board_section(trips, colors, domain, dest),
         _caveats_section(trips, params, origins, coverage),
         "</main>",
+        SWITCH_JS,
+        SORT_JS,
     ])
 
 

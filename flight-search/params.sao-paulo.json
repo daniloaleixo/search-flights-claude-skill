@@ -1,38 +1,71 @@
 {
   "dest": "GRU",
   "ground_notes": {
-    "BER": "home, no journey attached",
-    "HAM": "~2h by ICE, 30-80 EUR",
-    "FRA": "~4h by ICE, 70-130 EUR",
-    "PRG": "~4.5h by bus or train, 30-60 EUR",
-    "MUC": "~4.5h by ICE, 70-140 EUR",
-    "AMS": "~6.5h by ICE, 60-120 EUR"
+    "BER": "home, no journey attached, about 1h to the terminal",
+    "HAM": "~2h by ICE, 37 EUR, 2.5h front door to terminal",
+    "FRA": "~4h by ICE, 37 EUR, 4.5h front door to terminal",
+    "PRG": "~4.5h by bus or train, 29 EUR, 5h front door to terminal",
+    "MUC": "~4.5h by ICE, 37 EUR, 5h front door to terminal",
+    "AMS": "~6.5h by ICE, 60 EUR, 7h front door to terminal"
   },
-  "ground_cost": {
-    "BER": [
-      0,
-      0
-    ],
-    "HAM": [
-      30,
-      80
-    ],
-    "FRA": [
-      70,
-      130
-    ],
-    "PRG": [
-      30,
-      60
-    ],
-    "MUC": [
-      70,
-      140
-    ],
-    "AMS": [
-      60,
-      120
-    ]
+  "ground": {
+    "BER": {
+      "eur": 0,
+      "hours": 1.0,
+      "home": true
+    },
+    "HAM": {
+      "eur": 37,
+      "hours": 2.5,
+      "hotel_eur": 80,
+      "first_train": "05:00",
+      "last_train": "22:00"
+    },
+    "FRA": {
+      "eur": 37,
+      "hours": 4.5,
+      "hotel_eur": 90,
+      "first_train": "05:00",
+      "last_train": "20:00"
+    },
+    "PRG": {
+      "eur": 29,
+      "hours": 5.0,
+      "hotel_eur": 60,
+      "first_train": "05:00",
+      "last_train": "19:00"
+    },
+    "MUC": {
+      "eur": 37,
+      "hours": 5.0,
+      "hotel_eur": 95,
+      "first_train": "05:00",
+      "last_train": "20:00"
+    },
+    "AMS": {
+      "eur": 60,
+      "hours": 7.0,
+      "hotel_eur": 120,
+      "first_train": "05:00",
+      "last_train": "19:00"
+    }
+  },
+  "ground_timing": {
+    "check_in_hours": 2.5,
+    "disembark_hours": 1.5,
+    "hotel_arrive_by": "22:00"
+  },
+  "layover_hotel": {
+    "min_hours": 8,
+    "default_eur": 90,
+    "eur": {
+      "CMN": 45,
+      "FCO": 80,
+      "AMS": 120,
+      "LIS": 70,
+      "FOR": 40,
+      "BCN": 85
+    }
   },
   "origins": [
     {

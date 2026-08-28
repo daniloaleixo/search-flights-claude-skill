@@ -4,7 +4,8 @@ description: Search Google Flights across several origin airports and flexible d
 ---
 
 Drive Google Flights through generated deep links, scrape price-sorted results,
-and publish a fare board.
+and publish a fare board priced from the traveller's front door rather than
+from the airport.
 
 ## The rule that governs everything
 
@@ -112,29 +113,96 @@ still moving), then `get_page_text`. `scripts/parse_text.py` reads the text and
        python3 scripts/build_board.py ../runs/<timestamp> > ../fare-board-sao-paulo.html
 
    (`build_board.py` reads `trips.json` and `params.json` from the run
-   directory, plus `coverage.json` if present.) Publish the result with the
+   directory, plus `coverage.json` if present.) The page carries a checkbox
+   that switches between the two worlds below, sortable fare and
+   door-to-door columns, and each flight's departure and arrival times on
+   the local clock at each end.
+
+7. Check the shortlist against a live search before recommending anything.
+
+   A captured fare is a fact about the moment it was captured. The Sao
+   Paulo run watched fares move twice: between a page still fetching and the same page
+   settled (1025 to 982 EUR), and between the capture pass and the expansion
+   pass, where a Frankfurt row at 975 EUR was gone and the cheapest fare for
+   its date pair had become 948. A row is not a permalink, so re-checking is
+   a fresh search rather than a reopened link.
+
+   For each candidate the board is about to recommend: build the search for
+   that origin and date pair, navigate, wait for the page to settle, and read
+   the Cheapest tab. Never read the date picker, the price graph or the price
+   calendar to settle this. They are caches, they go stale, and the whole
+   skill exists because of it. Then:
+
+   - the fare is still there: nothing to do.
+   - the fare has moved: record the new one and rebuild. Do not edit the
+     number in place without re-running the gate, because a changed fare can
+     change the baseline every night verdict is measured against.
+   - the row is gone: `expansion_missing: true`, and say so in the caveats
+     rather than deriving a replacement arithmetically.
+
+   Do this for the shortlist, not the board. 462 rows cannot be re-checked,
+   and the shortlist is the part anyone acts on. Then publish with the
    Artifact tool.
 
-## Ground cost is compared, never added
+## The ground journey is compared, never added
 
 Every fare on the board is a number Google returned and nothing is ever added
-to it. Beside it sits a door-to-door band: `door_lo_eur` and `door_hi_eur`, the
-fare plus the ground journey at both ends, at the cheap end and the dear end of
-the estimate. `apply_ground_cost` attaches it from the `ground_cost` block in
-the params file, which mirrors the prose table in `references/ground.md`.
+to it. Beside it sits the door-to-door figure: the fare, plus the train at
+both ends, plus any night the journey forces. `references/ground.md` holds the
+table and the reasoning. What a run needs is the shape.
 
-Every comparison in `normalize.py` reads the band, not the fare. Ranking on
-fares alone recommended Amsterdam at 933 EUR over Berlin at 939 on the first
-Sao Paulo run, when Amsterdam carried 120 to 240 EUR of rail on top and Berlin
-carried none: door to door Berlin was the cheapest trip on the board and the
-board said Amsterdam. An airport with no `ground_cost` entry gets no band at
-all rather than a band with one end set to zero, and the caveats name it.
+The params file carries three blocks, and `apply_night_economics` reads all of
+them through `apply_journey` before anything is costed:
 
-Because the saving is now a range, `night_verdict` has a fifth value.
-`borderline` means the trip clears the night-layover bar at one end of its
-ground estimate and misses at the other; saying so is more honest than picking
-whichever end settles it. With no `ground_cost` block the band is a point and
-`borderline` never occurs, so an old run behaves exactly as it did.
+- `ground`, one entry per airport: `eur`, a real ticket price rather than an
+  estimate; `hours` from front door to terminal; `hotel_eur`; `first_train`;
+  `last_train`; and `home: true` for the airport with no journey attached.
+- `ground_timing`: `check_in_hours` (2.5), `disembark_hours` (1.5), and
+  `hotel_arrive_by` (22:00).
+- `layover_hotel`: `min_hours` (8), `eur` per airport, and `default_eur`.
+  Unlike the train fares, these are estimates until someone checks them.
+  Confirm them when setting a run up: a bed is large enough to reorder the
+  board.
+
+An airport with no `ground` entry gets no door-to-door figure at all, rather
+than one with a missing end quietly set to zero, and the caveats name it.
+`ground_spec` refuses a non-home airport missing `hotel_eur`, `first_train` or
+`last_train`: a missing `last_train` reads an unchecked airport as one you can
+always get home from.
+
+Ranking on fares alone recommended Amsterdam at 933 EUR over Berlin at 939 on
+the first Sao Paulo run, when Amsterdam carried 120 EUR of rail on top and
+Berlin carried none. Every comparison in `normalize.py` reads the door figure.
+
+Three things follow that a fare-only board cannot say.
+
+**A flight can be out of reach.** Work back from the departure through
+check-in and the journey; if that lands before the first train, the flight
+cannot be reached on the day and the trip carries a hotel. The same rule runs
+in reverse at the return end, against the last train home. On the Sao Paulo
+run 174 of 462 fares are unreachable on the day. `out_overnight` and
+`ret_overnight` carry the answer, and `None` means nobody checked, which the
+board says out loud rather than drawing as an all-clear.
+
+**The trip is longer than the flight.** A 13-hour flight from Amsterdam is a
+28-hour journey from Berlin, and ranking on air time hides every hour of it.
+`out_door_min` is the outbound from front door to landing, timezone included,
+and is what the shortlist's shortest-trip candidate ranks on. `journey_min`
+is both ends together, so it only exists for a trip whose return was opened,
+which on the Sao Paulo run is 2 rows of 462.
+
+**The board is rendered twice.** The traveller may have a free bed, so every
+trip is priced and judged in two worlds, `no_hotels` and `hotels`, stored
+under `trip["variants"]`. The switch moves the baseline as well as the totals,
+so a night layover can be justified in one world and not the other; both are
+true. `assert_all_variants_sound` runs the baseline gate in every world.
+Durations are computed once and shared: a forced night is spent whoever paid
+for the bed.
+
+Because a real ticket price is a point and not a range, the door-to-door band
+collapses to a point and `night_verdict: borderline` never fires. It stays
+implemented for the older `ground_cost` shape, a `[low, high]` estimate per
+airport, which is what a params file holds before anyone has looked a fare up.
 
 ## Two refusals before publishing
 
@@ -170,6 +238,12 @@ in the params file as documentation for the next reader, not as inputs.
   does not disqualify a trip; it obliges the trip to save at least 150 EUR or
   20% against the cheapest trip in the run with no night layover.
 - `night_verdict: unknown` means nobody checked. Never render it as clean.
+  The same holds for an unchecked return end and for a bed nobody priced: an
+  unpriced bed is unknown, not free.
+- A flight too early to reach by train is not disqualified, it is priced. The
+  hotel joins the door-to-door figure and the row is flagged.
+- A shortlist is verified against a live Cheapest-tab search before it is
+  recommended. A captured fare is only a fact about when it was captured.
 - Open jaws are booked as one multi-city ticket, never as two one-ways.
 - A row's `tfs_url` is the sweep search page it came from, not a link to that
   itinerary: it encodes every origin and one date pair, not one flight.

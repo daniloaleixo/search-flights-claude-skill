@@ -16,6 +16,8 @@ comparison here reads those.
 
 from datetime import datetime, time, timedelta
 
+from scripts.journey import apply_journey, hotel_cost
+
 NIGHT_START = time(23, 0)
 NIGHT_END = time(6, 0)
 DEFAULT_ABS_EUR = 150
@@ -73,11 +75,21 @@ def is_night_layover(start_iso, end_iso, window=(NIGHT_START, NIGHT_END)):
 def ground_band(params):
     """One-way ground cost per airport, as a (low, high) pair.
 
-    Read from `ground_cost` in the params file, which mirrors the prose
-    table in references/ground.md. A code absent here has no band, and a
-    trip touching it gets no door-to-door figure at all, rather than one
-    with a missing end quietly set to zero.
+    Two shapes are read, and the newer one wins. `ground` carries a real
+    ticket price per airport, which is a point and not a range, so both ends
+    of the band are that price and every comparison below settles instead of
+    straddling. `ground_cost` carries the older shape, a [low, high]
+    estimate, which is what a params file holds before anyone has looked up
+    a fare.
+
+    A code in neither has no band, and a trip touching it gets no
+    door-to-door figure at all, rather than one with a missing end quietly
+    set to zero.
     """
+    ground = params.get("ground")
+    if ground:
+        return {code: (entry["eur"], entry["eur"])
+                for code, entry in ground.items()}
     out = {}
     for code, band in (params.get("ground_cost") or {}).items():
         low, high = band
@@ -87,7 +99,7 @@ def ground_band(params):
     return out
 
 
-def door_to_door(trip, bands):
+def door_to_door(trip, bands, hotel=0):
     """Fare plus the ground journey at both ends, as a (low, high) band.
 
     The fare itself is never touched. This is a second number shown beside
@@ -98,6 +110,11 @@ def door_to_door(trip, bands):
     pays the outbound origin's journey and the return airport's. Either end
     missing a band returns (None, None), because a door-to-door figure
     missing one of its two journeys is not a door-to-door figure.
+
+    `hotel` is what the forced nights cost: a flight too early to reach by
+    train on the day is not reachable for the price of a train ticket. It is
+    a separate argument rather than part of the band because the reader may
+    have a free bed, and the board is rendered both ways.
     """
     fare = trip.get("price_eur")
     if fare is None:
@@ -109,17 +126,23 @@ def door_to_door(trip, bands):
         back_band = bands[back_code]
     except KeyError:
         return (None, None)
-    return (fare + out_band[0] + back_band[0],
-            fare + out_band[1] + back_band[1])
+    return (fare + out_band[0] + back_band[0] + hotel,
+            fare + out_band[1] + back_band[1] + hotel)
 
 
-def apply_ground_cost(trips, params):
-    """Attach the door-to-door band to every trip."""
+def apply_ground_cost(trips, params, hotels=True):
+    """Attach the door-to-door band to every trip.
+
+    `hotels=False` prices the same trips for a reader who does not pay for
+    the forced nights, which is the second of the two boards rendered.
+    """
     bands = ground_band(params)
     for trip in trips:
-        low, high = door_to_door(trip, bands)
+        hotel = hotel_cost(trip) if hotels else 0
+        low, high = door_to_door(trip, bands, hotel)
         trip["door_lo_eur"] = low
         trip["door_hi_eur"] = high
+        trip["door_hotel_eur"] = hotel
     return trips
 
 
@@ -190,27 +213,60 @@ def night_verdict(trip, baseline, abs_eur=DEFAULT_ABS_EUR, pct=DEFAULT_PCT):
     return "borderline"
 
 
+#: The two worlds the board is rendered in. "hotels" is the default and is
+#: computed last, so the plain top-level fields hold it and every existing
+#: reader of `night_verdict` keeps seeing the honest worst case.
+VARIANTS = ("no_hotels", "hotels")
+
+VARIANT_FIELDS = ("door_lo_eur", "door_hi_eur", "door_hotel_eur",
+                  "night_verdict", "is_baseline", "night_saving_eur",
+                  "night_saving_hi_eur", "night_saving_pct")
+
+
+def _score_night(trip, baseline, abs_eur, pct):
+    verdict = night_verdict(trip, baseline, abs_eur, pct)
+    trip["night_verdict"] = verdict
+    trip["is_baseline"] = bool(baseline and trip is baseline)
+    if verdict in ("justified", "borderline", "not_justified"):
+        low, high = night_saving_band(trip, baseline)
+        trip["night_saving_eur"] = low
+        trip["night_saving_hi_eur"] = high
+        trip["night_saving_pct"] = round(
+            low * 100 / cost_band(baseline)[0], 1)
+    else:
+        trip["night_saving_eur"] = None
+        trip["night_saving_hi_eur"] = None
+        trip["night_saving_pct"] = None
+
+
 def apply_night_economics(trips, params):
+    """Price and judge every trip twice, once paying for the forced nights.
+
+    A flight too early to reach by train obliges a hotel, and whether that
+    hotel is a cost is the reader's to say: they may have a discount, or a
+    sofa. Both worlds are computed here, in full, and stored under
+    `variants`, because the switch moves more than a total. It moves the
+    baseline, which is the cheapest clean trip, which moves every night
+    verdict measured against it. A layover can be justified in one world and
+    not in the other, and both are true.
+
+    What does not move is time. A night spent near the airport is spent
+    whoever paid for the bed, so the journey durations attached by
+    apply_journey are computed once and shared.
+    """
     discount = params.get("night_discount") or {}
     abs_eur = discount.get("abs_eur", DEFAULT_ABS_EUR)
     pct = discount.get("pct", DEFAULT_PCT)
-    apply_ground_cost(trips, params)
-    baseline = night_baseline(trips)
+    apply_journey(trips, params)
 
-    for trip in trips:
-        verdict = night_verdict(trip, baseline, abs_eur, pct)
-        trip["night_verdict"] = verdict
-        trip["is_baseline"] = bool(baseline and trip is baseline)
-        if verdict in ("justified", "borderline", "not_justified"):
-            low, high = night_saving_band(trip, baseline)
-            trip["night_saving_eur"] = low
-            trip["night_saving_hi_eur"] = high
-            trip["night_saving_pct"] = round(
-                low * 100 / cost_band(baseline)[0], 1)
-        else:
-            trip["night_saving_eur"] = None
-            trip["night_saving_hi_eur"] = None
-            trip["night_saving_pct"] = None
+    for name in VARIANTS:
+        apply_ground_cost(trips, params, hotels=(name == "hotels"))
+        baseline = night_baseline(trips)
+        for trip in trips:
+            _score_night(trip, baseline, abs_eur, pct)
+        for trip in trips:
+            trip.setdefault("variants", {})[name] = {
+                field: trip.get(field) for field in VARIANT_FIELDS}
     return trips
 
 
@@ -251,6 +307,39 @@ def assert_baseline_sound(trips):
             f"{cost_band(cheapest)[0]:g}: expand them first, because a clean "
             f"trip among them would move the bar every verdict is measured "
             f"against")
+
+
+def _load_variant(trips, name):
+    """Copy one stored variant onto the plain fields every reader uses."""
+    for trip in trips:
+        data = (trip.get("variants") or {}).get(name)
+        if data:
+            trip.update(data)
+
+
+def assert_all_variants_sound(trips):
+    """Run the baseline gate in every world the board is rendered in.
+
+    The switch between paying for the forced nights and not paying moves the
+    baseline, so it moves what counts as an unexamined trip undercutting it.
+    A board sound in one world and unsound in the other is unsound, and the
+    reader can see both with one click.
+
+    The default variant is restored on the way out, including when the gate
+    raises, so a caller that catches the error is not left holding numbers
+    from whichever world happened to fail.
+    """
+    names = [name for name in VARIANTS
+             if any((t.get("variants") or {}).get(name) for t in trips)]
+    if not names:
+        assert_baseline_sound(trips)
+        return
+    try:
+        for name in names:
+            _load_variant(trips, name)
+            assert_baseline_sound(trips)
+    finally:
+        _load_variant(trips, VARIANTS[-1])
 
 
 def missing_origins(rows, expected):

@@ -1,11 +1,14 @@
+import re
 import unittest
 
 from scripts.build_board import (NIGHT_LABELS, _airport_section, _candidates,
-                                 _caveats_section, _night_pill,
-                                 _ret_airports, airport_matrix,
-                                 date_matrix, origin_matrix,
+                                 _caveats_section, _journey_line, _night_pill,
+                                 _door_line, _overnight_pills,
+                                 _ret_airports,
+                                 airport_matrix, date_matrix, origin_matrix,
                                  render)
-from scripts.normalize import BaselineError, apply_ground_cost
+from scripts.normalize import (BaselineError, apply_ground_cost,
+                               apply_night_economics, assert_all_variants_sound)
 
 ORIGINS = ["BER", "FRA", "AMS"]
 RETS = ["BER", "FRA", "AMS"]
@@ -313,9 +316,37 @@ class TestDoorToDoorOnThePage(unittest.TestCase):
         self.assertEqual(fare[0]["trip"]["origin"], "AMS")
 
     def test_the_fare_column_is_never_moved_by_ground_cost(self):
+        """The fare cell holds the fare. The door figure gets its own
+        column beside it, and must never leak into this one."""
         html = markup(render(banded(TRIPS), GROUND_PARAMS, COVERAGE))
-        self.assertIn("1151", html)
-        self.assertNotIn("1271", html.replace("1271 ", ""))
+        fare_cells = re.findall(r'<td class="b-price">.*?</td>', html)
+        self.assertTrue(fare_cells)
+        self.assertTrue(any("1151" in cell for cell in fare_cells))
+        for cell in fare_cells:
+            self.assertNotIn("1271", cell)
+            self.assertNotIn("1211", cell)
+
+    def test_the_door_figure_gets_a_column_of_its_own(self):
+        html = markup(render(banded(TRIPS), GROUND_PARAMS, COVERAGE))
+        self.assertIn('data-sort-key="door"', html)
+        self.assertIn(">Door to door<", html)
+        door_cells = re.findall(r'<td class="b-door">.*?</td>', html)
+        self.assertTrue(any("1271" in cell for cell in door_cells))
+
+    def test_the_table_splits_the_total_into_train_and_bed(self):
+        html = markup(render(costed([priced("AMS", 900, dep_time="07:00")]),
+                             PRICED_PARAMS, {"AMS": "ok"}))
+        cell = re.findall(r'<td class="b-door">.*?</td>', html)[0]
+        self.assertIn("1140", cell)
+        self.assertIn("+120 train", cell)
+        self.assertIn("+120 bed", cell)
+
+    def test_a_trip_with_no_ground_journey_shows_no_breakdown(self):
+        html = markup(render(costed([priced("BER", 1050)]), PRICED_PARAMS,
+                             {"BER": "ok"}))
+        cell = re.findall(r'<td class="b-door">.*?</td>', html)[0]
+        self.assertIn("1050", cell)
+        self.assertNotIn("door-split", cell)
 
 
 class TestBorderlineRendering(unittest.TestCase):
@@ -454,3 +485,375 @@ class TestAirportSectionBlurb(unittest.TestCase):
         html = _airport_section(self.TRIPS, ["AMS"], ["AMS"], (933, 1774),
                                 open_jaw=True)
         self.assertIn("unmeasured, not empty", html)
+
+
+PRICED_PARAMS = {
+    "dest": "GRU", "currency": "EUR",
+    "ground": {
+        "BER": {"eur": 0, "hours": 1.0, "home": True},
+        "AMS": {"eur": 60, "hours": 7.0, "hotel_eur": 120,
+                "first_train": "05:00", "last_train": "19:00"},
+    },
+}
+PRICED_COVERAGE = {"BER": "ok", "AMS": "ok"}
+
+
+def priced(origin, price, night=False, dep_time="15:00", **kw):
+    row = {"origin": origin, "ret_airport": origin, "dest": "GRU",
+           "price_eur": price, "dep_date": "2026-12-23",
+           "ret_date": "2027-02-09", "dep_time": dep_time,
+           "total_duration_min": 780, "legs_expanded": True,
+           "night_layover": night, "stops": 1, "carriers": ("KLM",),
+           "tfs_url": "https://example/x"}
+    row.update(kw)
+    return row
+
+
+def costed(rows, params=PRICED_PARAMS):
+    apply_night_economics(rows, params)
+    return rows
+
+
+class TestTheHotelSwitch(unittest.TestCase):
+    def rows(self):
+        return costed([priced("AMS", 900, dep_time="07:00"),
+                       priced("BER", 1050)])
+
+    def test_the_switch_is_offered_when_both_worlds_exist(self):
+        html = markup(render(self.rows(), PRICED_PARAMS, PRICED_COVERAGE))
+        self.assertIn('id="hotel-switch"', html)
+
+    def test_both_shortlists_are_shipped_complete(self):
+        html = markup(render(self.rows(), PRICED_PARAMS, PRICED_COVERAGE))
+        self.assertIn('class="cards v-hotels"', html)
+        self.assertIn('class="cards v-no_hotels"', html)
+
+    def test_a_run_with_no_worlds_offers_no_switch(self):
+        html = markup(render(TRIPS, PARAMS, COVERAGE))
+        self.assertNotIn('id="hotel-switch"', html)
+
+    def test_paying_for_the_bed_changes_the_cheapest_trip(self):
+        rows = self.rows()
+        with_hotel = _candidates(rows, "hotels")[0]
+        without = _candidates(rows, "no_hotels")[0]
+        self.assertEqual(with_hotel["trip"]["origin"], "BER")
+        self.assertEqual(without["trip"]["origin"], "AMS")
+
+    def test_the_hotel_shows_in_its_price_only_where_it_is_paid(self):
+        row = self.rows()[0]
+        self.assertIn("120 EUR", _overnight_pills(row, "hotels"))
+        self.assertNotIn("120 EUR", _overnight_pills(row, "no_hotels"))
+
+    def test_the_warning_itself_never_depends_on_the_switch(self):
+        row = self.rows()[0]
+        for variant in ("hotels", "no_hotels"):
+            self.assertIn("night before the flight",
+                          _overnight_pills(row, variant))
+
+
+class TestJourneyTimeOnThePage(unittest.TestCase):
+    def test_the_shortlist_ranks_duration_from_the_front_door(self):
+        rows = costed([
+            priced("AMS", 900, dep_time="15:00", total_duration_min=700),
+            priced("BER", 1050, total_duration_min=780),
+        ])
+        picks = _candidates(rows, "hotels")
+        shortest = [p for p in picks if "shortest door to door" in p["why"]]
+        self.assertEqual(shortest[0]["trip"]["origin"], "BER")
+
+    def test_air_time_is_still_shown_as_air_time(self):
+        html = markup(render(costed([priced("BER", 1050)]),
+                             PRICED_PARAMS, {"BER": "ok"}))
+        self.assertIn("In the air", html)
+
+    def test_the_card_says_when_to_leave_home(self):
+        html = markup(render(costed([priced("AMS", 900, dep_time="07:00")]),
+                             PRICED_PARAMS, {"AMS": "ok"}))
+        self.assertIn("leave home 15:00", html)
+
+    def test_an_unopened_return_says_so_rather_than_showing_nothing(self):
+        self.assertIn("the return end has not been opened",
+                      _journey_line(costed([priced("BER", 1050)])[0]))
+
+    def test_an_opened_return_gets_a_time_home(self):
+        row = costed([priced("BER", 1050, ret_arr_date="2027-02-09",
+                             ret_arr_time="10:00", ret_duration_min=800)])[0]
+        self.assertIn("back: home", _journey_line(row))
+
+
+class TestGroundCaveats(unittest.TestCase):
+    def caveats(self, rows):
+        return _caveats_section(rows, PRICED_PARAMS, ["BER", "AMS"],
+                                PRICED_COVERAGE)
+
+    def test_the_assumed_prices_are_printed(self):
+        html = self.caveats(costed([priced("AMS", 900, dep_time="07:00")]))
+        self.assertIn("AMS 60 EUR and 7h, hotel 120", html)
+
+    def test_unreachable_flights_are_counted(self):
+        html = self.caveats(costed([priced("AMS", 900, dep_time="07:00")]))
+        self.assertIn("Flights you cannot reach on the day", html)
+
+    def test_unopened_return_ends_are_disclosed(self):
+        html = self.caveats(costed([
+            priced("AMS", 900, dep_time="07:00"),
+            priced("BER", 1050, ret_arr_date="2027-02-09",
+                   ret_arr_time="10:00", ret_duration_min=800),
+        ]))
+        self.assertIn("Return ends nobody opened", html)
+
+    def test_a_run_with_every_return_unopened_makes_no_such_claim(self):
+        html = self.caveats(costed([priced("AMS", 900, dep_time="07:00")]))
+        self.assertNotIn("Return ends nobody opened", html)
+
+
+class TestTheGateRunsInBothWorlds(unittest.TestCase):
+    def test_a_board_unsound_in_either_world_is_refused(self):
+        rows = costed([
+            priced("BER", 1050),
+            dict(priced("AMS", 900, dep_time="07:00"), legs_expanded=False,
+                 night_layover=None),
+        ])
+        with self.assertRaises(BaselineError):
+            render(rows, PRICED_PARAMS, PRICED_COVERAGE)
+
+    def test_the_default_world_is_restored_after_the_gate_refuses(self):
+        rows = costed([
+            priced("BER", 1050),
+            dict(priced("AMS", 900, dep_time="07:00"), legs_expanded=False,
+                 night_layover=None),
+        ])
+        with self.assertRaises(BaselineError):
+            assert_all_variants_sound(rows)
+        self.assertEqual(rows[0]["door_lo_eur"],
+                         rows[0]["variants"]["hotels"]["door_lo_eur"])
+
+
+class TestTheStylesheetStaysInTheStylesheet(unittest.TestCase):
+    """CSS appended after `</style>` renders as a wall of text at the top of
+    the page and silently stops applying. It happened once; this notices."""
+
+    def test_no_rule_leaks_into_the_markup(self):
+        body = markup(render(costed([priced("AMS", 900, dep_time="07:00"),
+                                     priced("BER", 1050)]),
+                             PRICED_PARAMS, PRICED_COVERAGE))
+        for rule in (".v-no_hotels {", ".switch {", ".card-journey {"):
+            self.assertNotIn(rule, body)
+
+    def test_the_hiding_rule_is_actually_present(self):
+        html = render(costed([priced("BER", 1050)]), PRICED_PARAMS,
+                      {"BER": "ok"})
+        style = html.partition("<style>")[2].partition("</style>")[0]
+        self.assertIn(".v-no_hotels { display: none; }", style)
+        self.assertIn("#hotel-switch:not(:checked) ~ *", style)
+        # :has() with .page as its subject asks the browser to re-check a
+        # subtree holding every row, and blanked the page. Comments may
+        # still name it; rules may not.
+        rules = re.sub(r"/\*.*?\*/", "", style, flags=re.S)
+        self.assertNotIn(":has(", rules)
+
+
+LAYOVER_PARAMS = dict(
+    PRICED_PARAMS,
+    layover_hotel={"min_hours": 8, "default_eur": 90,
+                   "eur": {"FCO": 80, "FOR": 40}},
+)
+
+
+def with_layover(code, minutes, **kw):
+    row = priced("BER", 1050, night=True, **kw)
+    row["layovers"] = [{"code": code, "minutes": minutes}]
+    row["layover_windows"] = [{"code": code, "minutes": minutes,
+                               "night_flag": True,
+                               "start": "2026-12-23T20:00:00",
+                               "end": "2026-12-24T10:00:00"}]
+    return row
+
+
+class TestANightInTransitCostsABed(unittest.TestCase):
+    def test_a_long_night_layover_carries_a_bed(self):
+        rows = costed([with_layover("FCO", 14 * 60), priced("BER", 1200)],
+                      LAYOVER_PARAMS)
+        self.assertEqual(rows[0]["lay_hotel_eur"], 80)
+        self.assertEqual(rows[0]["variants"]["hotels"]["door_lo_eur"], 1130)
+
+    def test_a_short_night_layover_is_spent_in_the_terminal(self):
+        rows = costed([with_layover("FOR", 6 * 60 + 45), priced("BER", 1200)],
+                      LAYOVER_PARAMS)
+        self.assertEqual(rows[0]["lay_hotel_eur"], 0)
+        self.assertEqual(rows[0]["variants"]["hotels"]["door_lo_eur"], 1050)
+
+    def test_an_unlisted_airport_falls_back_to_the_default(self):
+        rows = costed([with_layover("CMN", 19 * 60), priced("BER", 1200)],
+                      LAYOVER_PARAMS)
+        self.assertEqual(rows[0]["lay_hotel_eur"], 90)
+
+    def test_no_price_and_no_default_means_no_bed_not_a_free_one(self):
+        params = dict(PRICED_PARAMS,
+                      layover_hotel={"min_hours": 8, "eur": {"FCO": 80}})
+        rows = costed([with_layover("CMN", 19 * 60), priced("BER", 1200)],
+                      params)
+        self.assertEqual(rows[0]["lay_hotel_eur"], 0)
+
+    def test_the_bed_disappears_when_the_switch_is_off(self):
+        rows = costed([with_layover("FCO", 14 * 60), priced("BER", 1200)],
+                      LAYOVER_PARAMS)
+        self.assertEqual(rows[0]["variants"]["no_hotels"]["door_lo_eur"], 1050)
+
+    def test_a_row_nobody_expanded_gets_no_bed(self):
+        row = priced("BER", 1050, night=None)
+        row["legs_expanded"] = False
+        rows = costed([row, priced("BER", 1200)], LAYOVER_PARAMS)
+        self.assertEqual(rows[0]["lay_hotel_eur"], 0)
+
+    def test_the_card_says_where_each_night_is_spent(self):
+        rows = costed([with_layover("FCO", 14 * 60), priced("BER", 1200)],
+                      LAYOVER_PARAMS)
+        line = _door_line(rows[0], LAYOVER_PARAMS)
+        self.assertIn("80 of beds", line)
+        self.assertIn("a night at FCO in transit", line)
+
+
+class TestTheBoardCanBeReordered(unittest.TestCase):
+    """The two money columns are sortable, and the sort is the reader's.
+
+    Nothing here runs the script: what these assert is that every number a
+    click needs is already in the markup, so the browser reorders rows it
+    was handed rather than recomputing a fare.
+    """
+
+    def rows(self):
+        return costed([priced("AMS", 900, dep_time="07:00"),
+                       priced("BER", 1050)])
+
+    def board_rows(self, html):
+        body = html.partition('<table class="board"')[2]
+        return re.findall(r"<tr[^>]*>", body.partition("<tbody>")[2])
+
+    def test_both_money_columns_are_sort_controls(self):
+        html = markup(render(self.rows(), PRICED_PARAMS, PRICED_COVERAGE))
+        head = html.partition('<table class="board"')[2].partition(
+            "</thead>")[0]
+        self.assertIn('data-sort-key="fare"', head)
+        self.assertIn('data-sort-key="door"', head)
+        self.assertEqual(head.count("<button"), 2)
+
+    def test_no_other_column_pretends_to_be_sortable(self):
+        html = markup(render(self.rows(), PRICED_PARAMS, PRICED_COVERAGE))
+        head = html.partition('<table class="board"')[2].partition(
+            "</thead>")[0]
+        self.assertEqual(head.count("data-sort-key"), 2)
+
+    def test_fare_ships_marked_as_the_sorted_column(self):
+        html = markup(render(self.rows(), PRICED_PARAMS, PRICED_COVERAGE))
+        head = html.partition('<table class="board"')[2].partition(
+            "</thead>")[0]
+        fare = head.partition('data-sort-key="fare"')[0]
+        self.assertIn('aria-sort="ascending"', fare.rpartition("<th")[2])
+        self.assertEqual(head.count('aria-sort="ascending"'), 1)
+
+    def test_every_row_carries_the_fare_it_sorts_on(self):
+        html = markup(render(self.rows(), PRICED_PARAMS, PRICED_COVERAGE))
+        rows = self.board_rows(html)
+        self.assertEqual([r for r in rows if 'data-fare="900"' in r],
+                         [rows[0]])
+        self.assertIn('data-fare="1050"', rows[1])
+
+    def test_a_row_carries_a_door_figure_for_each_world(self):
+        html = markup(render(self.rows(), PRICED_PARAMS, PRICED_COVERAGE))
+        row = self.board_rows(html)[0]
+        # AMS at 07:00 cannot be reached that morning: 900 + 120 of train,
+        # and 120 more for the bed once the switch counts it.
+        self.assertIn('data-door-no_hotels="1020"', row)
+        self.assertIn('data-door-hotels="1140"', row)
+
+    def test_a_fare_nobody_returned_carries_no_sort_key(self):
+        rows = costed([priced("BER", 1050)])
+        rows.append(dict(priced("AMS", 0), price_eur=None, legs_expanded=False,
+                         night_verdict="unknown"))
+        html = markup(render(rows, PRICED_PARAMS, PRICED_COVERAGE))
+        blank = [r for r in self.board_rows(html) if "data-fare" not in r]
+        self.assertEqual(len(blank), 1)
+        self.assertNotIn("data-door", blank[0])
+
+    def test_the_script_reads_the_world_the_switch_is_in(self):
+        html = render(self.rows(), PRICED_PARAMS, PRICED_COVERAGE)
+        script = html.rpartition("<script>")[2]
+        self.assertIn('"data-door-" + world', script)
+        self.assertIn('box.checked) ? "no_hotels" : "hotels"', script)
+
+    def test_the_blurb_says_the_columns_move(self):
+        html = markup(render(self.rows(), PRICED_PARAMS, PRICED_COVERAGE))
+        self.assertIn("reorders the board when you click its heading", html)
+
+
+class TestClockTimesInTheTable(unittest.TestCase):
+    """When each flight leaves and lands, and what is not known.
+
+    An outbound comes with its times from the search itself; a return only
+    has them once somebody opened the itinerary, so the two halves of the
+    same row can legitimately disagree about how much is known.
+    """
+
+    def rows(self, **kw):
+        row = priced("BER", 1050, dep_time="10:05", arr_time="06:10",
+                     arr_date="2026-12-24", **kw)
+        return costed([row, priced("AMS", 1200, dep_time="09:00")])
+
+    def cells(self, html):
+        body = html.partition('<table class="board"')[2].partition(
+            "<tbody>")[2]
+        return re.findall(r'<td class="b-when">.*?</td>', body)
+
+    def test_the_outbound_carries_both_of_its_times(self):
+        html = markup(render(self.rows(), PRICED_PARAMS, PRICED_COVERAGE))
+        out = self.cells(html)[0]
+        self.assertIn("10:05", out)
+        self.assertIn("06:10", out)
+        self.assertIn("23 Dec", out)
+
+    def test_landing_the_next_day_says_so(self):
+        html = markup(render(self.rows(), PRICED_PARAMS, PRICED_COVERAGE))
+        self.assertIn('<sup class="when-plus">+1</sup>', self.cells(html)[0])
+
+    def test_landing_the_same_day_carries_no_marker(self):
+        rows = costed([priced("BER", 1050, dep_time="08:00",
+                              arr_time="19:30", arr_date="2026-12-23"),
+                       priced("AMS", 1200)])
+        html = markup(render(rows, PRICED_PARAMS, PRICED_COVERAGE))
+        self.assertNotIn("when-plus", self.cells(html)[0])
+
+    def test_a_return_nobody_opened_says_why_it_is_blank(self):
+        html = markup(render(self.rows(), PRICED_PARAMS, PRICED_COVERAGE))
+        back = self.cells(html)[1]
+        self.assertIn("9 Feb", back)
+        self.assertIn("times not opened", back)
+
+    def test_a_captured_return_shows_its_times(self):
+        rows = self.rows(ret_dep_date="2027-02-09", ret_dep_time="20:40",
+                         ret_arr_date="2027-02-10", ret_arr_time="17:05",
+                         ret_captured=True)
+        html = markup(render(rows, PRICED_PARAMS, PRICED_COVERAGE))
+        back = self.cells(html)[1]
+        self.assertIn("20:40", back)
+        self.assertIn("17:05", back)
+        self.assertIn('<sup class="when-plus">+1</sup>', back)
+        self.assertNotIn("times not opened", back)
+
+    def test_every_row_gets_both_cells(self):
+        html = markup(render(self.rows(), PRICED_PARAMS, PRICED_COVERAGE))
+        self.assertEqual(len(self.cells(html)), 4)
+
+    def test_the_caveat_counts_the_returns_that_were_opened(self):
+        rows = self.rows(ret_dep_date="2027-02-09", ret_dep_time="20:40",
+                         ret_arr_date="2027-02-10", ret_arr_time="17:05")
+        html = markup(render(rows, PRICED_PARAMS, PRICED_COVERAGE))
+        self.assertIn("the 1 of 2 rows whose return end was actually "
+                      "opened", html)
+
+    def test_a_missing_arrival_date_is_not_a_day_earlier(self):
+        rows = costed([priced("BER", 1050, dep_time="10:05",
+                              arr_time="06:10"),
+                       priced("AMS", 1200)])
+        html = markup(render(rows, PRICED_PARAMS, PRICED_COVERAGE))
+        self.assertNotIn("when-plus", self.cells(html)[0])
