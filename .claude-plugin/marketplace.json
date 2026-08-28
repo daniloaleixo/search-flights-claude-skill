@@ -1,0 +1,17 @@
+{
+  "name": "daniloaleixo",
+  "owner": {
+    "name": "Danilo Aleixo"
+  },
+  "metadata": {
+    "description": "Flight tooling for Claude Code"
+  },
+  "plugins": [
+    {
+      "name": "flight-search",
+      "version": "0.1.0",
+      "source": "./plugin",
+      "description": "Search Google Flights across several origin airports and flexible dates, price every trip from the traveller's front door rather than from the airport, and publish a fare board."
+    }
+  ]
+}

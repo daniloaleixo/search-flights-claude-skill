@@ -1,0 +1,9 @@
+{
+  "name": "flight-search",
+  "description": "Search Google Flights across several origin airports and flexible dates, including open-jaw trips, and publish a comparison artifact. Fares are read off the Cheapest tab of a settled results page, never off a date picker or price graph, and every trip is priced from the traveller's front door including trains and any forced hotel night.",
+  "version": "0.1.0",
+  "repository": "https://github.com/daniloaleixo/search-flights-claude-skill",
+  "author": {
+    "name": "Danilo Aleixo"
+  }
+}

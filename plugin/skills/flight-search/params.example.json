@@ -95,7 +95,7 @@
     }
   ],
   "return_airports": "same_as_origins",
-  "open_jaw": true,
+  "open_jaw": false,
   "ticket": "single",
   "dep_window": [
     "2026-12-19",
