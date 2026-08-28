@@ -1,4 +1,5 @@
 runs/
+flight-runs/
 __pycache__/
 *.pyc
 .superpowers/

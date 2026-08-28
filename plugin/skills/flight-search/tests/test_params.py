@@ -6,7 +6,7 @@ from scripts.build_board import _ground_notes
 
 PARAMS_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "params.sao-paulo.json",
+    "params.example.json",
 )
 
 

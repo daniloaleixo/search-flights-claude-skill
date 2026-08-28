@@ -51,21 +51,39 @@ results", which takes 20-40 seconds and during which the prices shown are
 still moving), then `get_page_text`. `scripts/parse_text.py` reads the text and
 `ingest_page_text` applies the same two refusals.
 
+## Where things live
+
+Two directories, and confusing them writes a run inside the skill.
+
+The **skill directory** holds the scripts. Installed as a plugin that is
+`$CLAUDE_PLUGIN_ROOT/skills/flight-search`; cloned straight into
+`~/.claude/skills` it is the skill's own folder. Every command below calls it
+`$SKILL`, set once at the start of a run:
+
+    SKILL="$CLAUDE_PLUGIN_ROOT/skills/flight-search"
+
+The **run directory** holds the captures and the board, and it is the
+traveller's data rather than the skill's. It goes under the working directory
+as `flight-runs/<timestamp>/`. Never write a run beside the scripts: a plugin
+cache is replaced on the next version bump and the run goes with it.
+
 ## Running a search
 
-1. Write a params file. Copy `params.sao-paulo.json` and edit the windows,
-   origins and stop budgets.
+1. Write a params file. Copy `$SKILL/params.example.json` into the working
+   directory as `params.json` and edit the windows, origins and stop
+   budgets. The example is a real run, Berlin to Sao Paulo, so its origins
+   and its ground prices are one traveller's and not defaults.
 
 2. Generate the sweep URLs:
 
-       cd flight-search
-       python3 -c "import json,sys; from scripts.plan_run import sweep_searches; \
-         print(json.dumps(sweep_searches(json.load(open(sys.argv[1])))))" params.sao-paulo.json
+       PYTHONPATH="$SKILL" python3 -c "import json,sys; \
+         from scripts.plan_run import sweep_searches; \
+         print(json.dumps(sweep_searches(json.load(open(sys.argv[1])))))" params.json
 
 3. For each URL: navigate with `mcp__claude-in-chrome__navigate`, poll until
    the page reports "Sorted by price" and has stopped saying "Fetching
    results", then read it with `mcp__claude-in-chrome__get_page_text`. Save
-   each capture to `runs/<timestamp>/raw/<search_id>.json` as
+   each capture to `flight-runs/<timestamp>/raw/<search_id>.json` as
    `{url, activeTab, sortedBy, pageText}`. A page still fetching shows prices
    that are minutes from final: on one measured page the top fare moved from
    1025 to 982 EUR between the loading state and the settled one.
@@ -79,8 +97,8 @@ still moving), then `get_page_text`. `scripts/parse_text.py` reads the text and
 
 4. Ingest, then check coverage:
 
-       python3 -c "from scripts.ingest import merge_captures; ..."
-       python3 -c "from scripts.plan_run import origins_needing_backfill; ..."
+       PYTHONPATH="$SKILL" python3 -c "from scripts.ingest import merge_captures; ..."
+       PYTHONPATH="$SKILL" python3 -c "from scripts.plan_run import origins_needing_backfill; ..."
 
    Feed the merged rows to `origins_needing_backfill`, not `missing_origins`:
    an origin can appear in every capture and still need a backfill search,
@@ -110,7 +128,8 @@ still moving), then `get_page_text`. `scripts/parse_text.py` reads the text and
 
 6. Apply `apply_night_economics`, then build the page:
 
-       python3 scripts/build_board.py ../runs/<timestamp> > ../fare-board-sao-paulo.html
+       PYTHONPATH="$SKILL" python3 "$SKILL/scripts/build_board.py" \
+         flight-runs/<timestamp> > fare-board.html
 
    (`build_board.py` reads `trips.json` and `params.json` from the run
    directory, plus `coverage.json` if present.) The page carries a checkbox
