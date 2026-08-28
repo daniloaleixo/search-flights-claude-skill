@@ -22,6 +22,8 @@ zero reads as free. Both are lies about a number nobody measured.
 
 from html import escape as esc
 
+from scripts.normalize import assert_baseline_sound, cost_band
+
 MONTH_ABBR = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
@@ -38,6 +40,7 @@ CARRIER_SLOTS = 7
 NIGHT_LABELS = {
     "clean": "no night layover",
     "justified": "night layover, pays for itself",
+    "borderline": "night layover, too close to call",
     "not_justified": "night layover, does not pay",
     "unknown": "not checked",
 }
@@ -46,6 +49,36 @@ NIGHT_LABELS = {
 # --------------------------------------------------------------------------
 # matrices
 # --------------------------------------------------------------------------
+
+def _band(trip):
+    """Door-to-door band, or the bare fare when no ground cost was given."""
+    return cost_band(trip)
+
+
+def _money(value, currency="EUR"):
+    return f"{value:g} {currency}"
+
+
+def _band_label(trip, currency="EUR"):
+    """`933 to 1173 EUR`, or a single figure when the band is a point."""
+    low, high = _band(trip)
+    if low == high:
+        return _money(low, currency)
+    return f"{low:g} to {high:g} {currency}"
+
+
+def _door_line(trip, params):
+    """The fare's door-to-door band, spelled out, or why there isn't one."""
+    currency = params.get("currency", "EUR")
+    low, high = _band(trip)
+    if trip.get("door_lo_eur") is None:
+        return "door to door not determined: no ground cost for this airport"
+    if low == high:
+        return f"door to door {low:g} {currency}, no ground journey either end"
+    fare = trip["price_eur"]
+    return (f"door to door {low:g} to {high:g} {currency}, "
+            f"ground {low - fare:g} to {high - fare:g} on top")
+
 
 def _cheaper(current, candidate):
     if current is None:
@@ -312,13 +345,18 @@ def _night_pill(trip):
     """
     verdict = trip.get("night_verdict", "unknown")
     label = NIGHT_LABELS.get(verdict, "not checked")
-    saving = trip.get("night_saving_eur")
-    if verdict == "justified" and saving is not None:
-        label = f"night layover, saves {saving} EUR"
-    if verdict == "not_justified" and saving is not None:
-        label = (f"night layover, saves only {saving} EUR" if saving > 0
-                 else f"night layover, and {abs(saving)} EUR dearer")
+    low = trip.get("night_saving_eur")
+    high = trip.get("night_saving_hi_eur")
+    if verdict == "justified" and low is not None:
+        label = f"night layover, saves {low:g} EUR door to door"
+    if verdict == "borderline" and low is not None and high is not None:
+        label = (f"night layover, saves {low:g} to {high:g} EUR "
+                 f"depending on the ground fare")
+    if verdict == "not_justified" and low is not None:
+        label = (f"night layover, saves only {low:g} EUR" if low > 0
+                 else f"night layover, and {abs(low):g} EUR dearer")
     glyph = {"clean": "&#9679;", "justified": "&#9670;",
+             "borderline": "&#9671;",
              "not_justified": "&#9650;"}.get(verdict, "?")
     return (f'<span class="pill pill--{esc(verdict)}">'
             f'<span class="pill-glyph" aria-hidden="true">{glyph}</span>'
@@ -384,6 +422,19 @@ def _masthead(trips, params, cheapest, domain):
     expanded = sum(1 for t in trips if t.get("legs_expanded"))
     checked = sum(1 for t in trips
                   if t.get("night_verdict") not in (None, "unknown"))
+    priced = [t for t in trips if t.get("price_eur") is not None]
+    door = min(priced, key=lambda t: _band(t)[0], default=None)
+    if door is not None and door.get("door_lo_eur") is not None:
+        low_d, high_d = _band(door)
+        unit = (esc(params.get("currency", "EUR")) if low_d == high_d
+                else f'to {high_d:g} {esc(params.get("currency", "EUR"))}')
+        door_value = (f'<span class="hero-num">{low_d:g}</span>'
+                      f'<span class="hero-unit">{unit}</span>')
+        door_note = (f'{esc(str(door.get("origin") or "?"))}, fare '
+                     f'{door.get("price_eur")} plus the train at both ends')
+    else:
+        door_value = '<span class="hero-num nd-hero">not determined</span>'
+        door_note = "no ground costs were given"
     if cheapest:
         hero = (f'<span class="hero-num">{cheapest["price_eur"]}</span>'
                 f'<span class="hero-unit">{esc(params.get("currency", "EUR"))}'
@@ -408,6 +459,9 @@ def _masthead(trips, params, cheapest, domain):
         f'<div class="stat stat--hero"><p class="stat-label">Cheapest fare '
         f'found</p><p class="stat-value">{hero}</p>'
         f'<p class="stat-note">{hero_note}</p></div>'
+        f'<div class="stat stat--hero"><p class="stat-label">Cheapest door '
+        f'to door</p><p class="stat-value">{door_value}</p>'
+        f'<p class="stat-note">{door_note}</p></div>'
         f'<div class="stat"><p class="stat-label">Fares on the board</p>'
         f'<p class="stat-value"><span class="hero-num">{len(trips)}</span></p>'
         f'<p class="stat-note">spread {low} to {high} '
@@ -589,17 +643,22 @@ def _candidates(trips):
         picks.append({"trip": trip, "why": [why]})
 
     priced = [t for t in trips if t.get("price_eur") is not None]
+
+    def by_door(rows):
+        return min(rows, key=lambda t: _band(t)[0], default=None)
+
+    add(by_door(priced), "cheapest door to door")
     add(min(priced, key=lambda t: t["price_eur"], default=None),
-        "cheapest on the board")
+        "cheapest fare on the board")
     clean = [t for t in priced if t.get("night_verdict") == "clean"]
-    add(min(clean, key=lambda t: t["price_eur"], default=None),
-        "cheapest with no night layover")
+    add(by_door(clean), "cheapest with no night layover")
     justified = [t for t in priced if t.get("night_verdict") == "justified"]
-    add(min(justified, key=lambda t: t["price_eur"], default=None),
-        "night layover that pays for itself")
+    add(by_door(justified), "night layover that pays for itself")
+    borderline = [t for t in priced if t.get("night_verdict") == "borderline"]
+    add(by_door(borderline), "night layover the ground fare decides")
     timed = [t for t in priced if t.get("total_duration_min")]
     add(min(timed, key=lambda t: t["total_duration_min"], default=None),
-        "shortest door to door")
+        "shortest in the air")
     return picks
 
 
@@ -629,6 +688,7 @@ def _candidate_section(trips, params, colors, notes, dest):
             f'<p class="card-price">{trip.get("price_eur")}'
             f'<span class="card-unit">'
             f'{esc(params.get("currency", "EUR"))}</span></p></div>'
+            f'<p class="card-door">{esc(_door_line(trip, params))}</p>'
             '<dl class="facts">'
             f'<div><dt>Out</dt><dd>{esc(_day(trip.get("dep_date")))}</dd></div>'
             f'<div><dt>Back</dt><dd>{esc(_day(trip.get("ret_date")))}</dd></div>'
@@ -650,9 +710,10 @@ def _candidate_section(trips, params, colors, notes, dest):
     return _section(
         "Shortlist",
         "The candidates",
-        "Four fares, each here for a different reason. Ground notes cover both "
-        "ends, because a cheap fare into an airport two hours from where you "
-        "sleep is not a cheap fare.",
+        "Each one here for a different reason. The fare is what Google "
+        "returned; the line under it adds the train at both ends, which is "
+        "why the cheapest fare and the cheapest trip are not always the "
+        "same row.",
         '<div class="cards">' + "".join(cards) + "</div>",
     )
 
@@ -819,6 +880,51 @@ def _caveats_section(trips, params, origins, coverage):
             "return airport until the itinerary is expanded, so the return "
             'column is "not determined" for every row nobody opened, and the '
             "airport by airport grid stays mostly unfilled.</p></li>")
+    banded = [t for t in trips if t.get("door_lo_eur") is not None]
+    if banded:
+        no_band = sorted({t.get("origin") for t in trips
+                          if t.get("door_lo_eur") is None and t.get("origin")})
+        gap = ("" if not no_band else
+               " No ground cost was given for "
+               f"{esc(', '.join(no_band))}, so rows from there carry a fare "
+               "and no door-to-door figure at all.")
+        items.append(
+            "<li><h3>The ground journey is an estimate, and it is not in the "
+            "fare</h3><p>Every fare on this board is a number Google returned "
+            "and nothing has been added to it. Beside it sits the "
+            "door-to-door band: that fare plus the train at both ends, at the "
+            "cheap end and the dear end of the estimate. Comparisons here "
+            "read the band, not the fare, because an airport six hours away "
+            "sells a fare that is not the price of going there. "
+            f"{len(banded)} of {len(trips)} rows have a band.{gap} The "
+            "estimates come from references/ground.md and are rough; a booked "
+            "train ticket beats them.</p></li>")
+    borderline = [t for t in trips if t.get("night_verdict") == "borderline"]
+    if borderline:
+        listed = ", ".join(
+            f'{t.get("origin") or "?"} {t.get("price_eur")}'
+            for t in _sorted_trips(borderline)[:8])
+        items.append(
+            "<li><h3>Verdicts the ground estimate decides</h3><p>"
+            f"{len(borderline)} rows clear the night-layover bar at one end "
+            "of their ground estimate and miss it at the other, so they are "
+            'marked "too close to call" rather than given a verdict the '
+            f"estimate is not precise enough to support: {esc(listed)}. "
+            "Pricing the actual trains would settle them.</p></li>")
+    gone = [t for t in trips if t.get("expansion_missing")]
+    if gone:
+        listed = ", ".join(
+            f'{t.get("origin") or "?"} {t.get("price_eur")}'
+            for t in _sorted_trips(gone)[:8])
+        items.append(
+            "<li><h3>Rows that had vanished by the time we went back</h3><p>"
+            f"{len(gone)} row{'s were' if len(gone) != 1 else ' was'} cheap "
+            "enough to need expanding, but the itinerary was no longer in the "
+            "results when we returned for it. "
+            "Fares and result sets move between the capture pass and the "
+            "expansion pass. These rows keep the fare they were captured at "
+            "and will never get a night verdict: "
+            f"{esc(listed)}.</p></li>")
     self_transfers = [t for t in trips if t.get("self_transfer")]
     if self_transfers:
         listed = ", ".join(
@@ -1265,6 +1371,16 @@ table { border-collapse: separate; border-spacing: 0; width: 100%; }
   border-color: color-mix(in srgb, var(--critical) 50%, var(--surface));
 }
 .pill--not_justified .pill-glyph { color: var(--critical); }
+.pill--borderline {
+  background: var(--surface-2);
+  border: 1px solid var(--serious);
+  color: var(--ink);
+}
+.pill--borderline .pill-glyph { color: var(--serious); }
+.card-door {
+  margin: -6px 0 14px; font-size: 13px; line-height: 1.45;
+  color: var(--ink-2);
+}
 .pill--unknown, .pill--nd {
   color: var(--muted);
   background: transparent;
@@ -1456,6 +1572,10 @@ def render(trips, params, coverage=None):
     notes = _ground_notes(params)
     priced = [t for t in trips if t.get("price_eur") is not None]
     cheapest = min(priced, key=lambda t: t["price_eur"], default=None)
+    # Refuses rather than renders: a baseline some unexpanded trip undercuts
+    # makes every night verdict on the page wrong in the same direction, and
+    # a board is not the place to find that out.
+    assert_baseline_sound(trips)
 
     title = f"{params.get('dest_name') or dest} Fare Board"
 

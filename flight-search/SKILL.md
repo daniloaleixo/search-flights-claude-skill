@@ -93,10 +93,19 @@ still moving), then `get_page_text`. `scripts/parse_text.py` reads the text and
    Pass the params window through explicitly rather than relying on
    `layover_windows`'s default, so a run that configured a different band
    (`night_layover_window` in the params file) actually gets it applied.
+   `expansion_targets` puts every origin ahead of the cheapest-first budget:
+   each origin gets one expansion, and then keeps getting one per batch until
+   it has a trip with no night layover or has spent six tries. Without that
+   floor the batch comes off one end of the price range, and on the first Sao
+   Paulo run Hamburg was never expanded once while Berlin, the only airport
+   with no ground journey attached, got two tries and no clean result. The
+   board could say least about the airports the traveller was most able to use.
+
    Keep expanding until twelve are expanded and at least three have no night
    layover. If thirty expansions pass without three clean trips, stop and
    report that: a field with no comfortable option at any price is itself the
-   finding.
+   finding. An itinerary you go back for and cannot find gets
+   `expansion_missing: true` rather than a guess.
 
 6. Apply `apply_night_economics`, then build the page:
 
@@ -105,6 +114,43 @@ still moving), then `get_page_text`. `scripts/parse_text.py` reads the text and
    (`build_board.py` reads `trips.json` and `params.json` from the run
    directory, plus `coverage.json` if present.) Publish the result with the
    Artifact tool.
+
+## Ground cost is compared, never added
+
+Every fare on the board is a number Google returned and nothing is ever added
+to it. Beside it sits a door-to-door band: `door_lo_eur` and `door_hi_eur`, the
+fare plus the ground journey at both ends, at the cheap end and the dear end of
+the estimate. `apply_ground_cost` attaches it from the `ground_cost` block in
+the params file, which mirrors the prose table in `references/ground.md`.
+
+Every comparison in `normalize.py` reads the band, not the fare. Ranking on
+fares alone recommended Amsterdam at 933 EUR over Berlin at 939 on the first
+Sao Paulo run, when Amsterdam carried 120 to 240 EUR of rail on top and Berlin
+carried none: door to door Berlin was the cheapest trip on the board and the
+board said Amsterdam. An airport with no `ground_cost` entry gets no band at
+all rather than a band with one end set to zero, and the caveats name it.
+
+Because the saving is now a range, `night_verdict` has a fifth value.
+`borderline` means the trip clears the night-layover bar at one end of its
+ground estimate and misses at the other; saying so is more honest than picking
+whichever end settles it. With no `ground_cost` block the band is a point and
+`borderline` never occurs, so an old run behaves exactly as it did.
+
+## Two refusals before publishing
+
+`assert_baseline_sound` runs inside `render` and raises rather than draws.
+Every night verdict is measured against one row, the cheapest expanded trip
+with no night layover, so a cheaper row nobody expanded could be the real
+baseline and would move every verdict in the same direction. Expansion runs
+cheapest-first, so this usually holds on its own; holding on its own is not the
+same as being checked. On the Sao Paulo re-run it fired, and it was right:
+three Berlin itineraries under the baseline had never been opened.
+
+A row that was looked for and is no longer in the results gets
+`expansion_missing: true` and is exempt. Fares and whole result sets move
+between the capture pass and the expansion pass, and blocking the board on a
+row nobody can reach again would only mean never publishing. Those rows are
+listed in the caveats.
 
 ## Parameters that are declarative only
 
@@ -132,8 +178,13 @@ in the params file as documentation for the next reader, not as inputs.
 
 ## When Google changes
 
-The parsers key off `aria-label` sentences, which are the most stable thing on
-the page. If a run returns zero rows from a page that loaded, `extract.js` is
-where to look first. Golden tests in `tests/test_tfs.py` pin the URL encoding
-against three links verified on the live site; if those fail, the wire format
-moved.
+`parse_text.py` reads the page's visible text, which is what `get_page_text`
+returns, so a run that yields zero rows from a page that loaded is a
+`parse_text.py` problem first. Its row splitter keys off a time line followed
+by an en dash, and the fields after it are positional. `extract.js` is not
+involved: it is only the two-field readiness probe now, and `parse.py`, which
+reads `aria-label` sentences, is the older path kept for captures that carry a
+`rows` array instead of `pageText`.
+
+Golden tests in `tests/test_tfs.py` pin the URL encoding against three links
+verified on the live site; if those fail, the wire format moved.

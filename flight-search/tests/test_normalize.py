@@ -1,8 +1,10 @@
 import unittest
 
 from scripts.normalize import (
-    apply_night_economics, expansion_targets, is_night_layover,
-    layover_windows, missing_origins, night_baseline, night_verdict,
+    BaselineError, apply_ground_cost, apply_night_economics,
+    assert_baseline_sound, cost_band, door_to_door, expansion_targets,
+    ground_band, is_night_layover, layover_windows, missing_origins,
+    night_baseline, night_saving_band, night_verdict,
 )
 
 
@@ -177,6 +179,197 @@ class TestExpansionTargets(unittest.TestCase):
                   "night_layover": True} for i in range(12)]
         trips.append({"id": "x", "price_eur": 500})
         self.assertEqual(len(expansion_targets(trips, want=12, want_clean=3)), 1)
+
+
+PARAMS = {"ground_cost": {"BER": [0, 0], "AMS": [60, 120], "FRA": [70, 130]}}
+
+
+def trip(origin, price, **extra):
+    row = {"origin": origin, "price_eur": price}
+    row.update(extra)
+    return row
+
+
+class TestGroundBand(unittest.TestCase):
+    def test_reads_the_params_block(self):
+        self.assertEqual(ground_band(PARAMS)["AMS"], (60, 120))
+
+    def test_absent_block_is_empty_not_zero(self):
+        self.assertEqual(ground_band({}), {})
+
+    def test_an_inverted_band_is_a_typo_and_raises(self):
+        with self.assertRaises(ValueError):
+            ground_band({"ground_cost": {"AMS": [120, 60]}})
+
+
+class TestDoorToDoor(unittest.TestCase):
+    def setUp(self):
+        self.bands = ground_band(PARAMS)
+
+    def test_a_round_trip_pays_the_same_journey_twice(self):
+        row = trip("AMS", 933, ret_airport="AMS")
+        self.assertEqual(door_to_door(row, self.bands), (1053, 1173))
+
+    def test_an_open_jaw_pays_each_end_once(self):
+        row = trip("AMS", 933, ret_airport="BER")
+        self.assertEqual(door_to_door(row, self.bands), (993, 1053))
+
+    def test_the_airport_with_no_journey_adds_nothing(self):
+        row = trip("BER", 939, ret_airport="BER")
+        self.assertEqual(door_to_door(row, self.bands), (939, 939))
+
+    def test_an_end_with_no_band_yields_no_figure_rather_than_a_zero(self):
+        row = trip("AMS", 933, ret_airport="MUC")
+        self.assertEqual(door_to_door(row, self.bands), (None, None))
+
+    def test_a_row_with_no_fare_yields_no_figure(self):
+        self.assertEqual(
+            door_to_door({"origin": "BER", "price_eur": None}, self.bands),
+            (None, None))
+
+
+class TestCostBand(unittest.TestCase):
+    def test_falls_back_to_the_bare_fare_as_a_point(self):
+        self.assertEqual(cost_band({"price_eur": 500}), (500, 500))
+
+    def test_uses_the_attached_band_when_there_is_one(self):
+        rows = apply_ground_cost([trip("AMS", 933, ret_airport="AMS")], PARAMS)
+        self.assertEqual(cost_band(rows[0]), (1053, 1173))
+
+
+class TestBaselineRanksDoorToDoor(unittest.TestCase):
+    def test_the_cheaper_fare_loses_to_the_cheaper_journey(self):
+        # AMS 933 is the cheaper fare; FRA 1000 is the cheaper trip once the
+        # train at both ends is counted, 1140 against 1053 low end... the
+        # baseline must be the one with the lower band, not the lower fare.
+        rows = [trip("AMS", 933, ret_airport="AMS", legs_expanded=True,
+                     night_layover=False),
+                trip("BER", 940, ret_airport="BER", legs_expanded=True,
+                     night_layover=False)]
+        apply_ground_cost(rows, PARAMS)
+        self.assertEqual(night_baseline(rows)["origin"], "BER")
+
+    def test_without_ground_costs_it_is_the_cheaper_fare(self):
+        rows = [trip("AMS", 933, legs_expanded=True, night_layover=False),
+                trip("BER", 940, legs_expanded=True, night_layover=False)]
+        self.assertEqual(night_baseline(rows)["origin"], "AMS")
+
+
+class TestBorderlineVerdict(unittest.TestCase):
+    def setUp(self):
+        self.base = trip("AMS", 933, ret_airport="AMS", legs_expanded=True,
+                         night_layover=False)
+        self.night = trip("BER", 939, ret_airport="BER", legs_expanded=True,
+                          night_layover=True)
+        apply_ground_cost([self.base, self.night], PARAMS)
+
+    def test_the_saving_is_a_band_not_a_number(self):
+        self.assertEqual(night_saving_band(self.night, self.base), (114, 234))
+
+    def test_straddling_the_bar_is_too_close_to_call(self):
+        self.assertEqual(night_verdict(self.night, self.base), "borderline")
+
+    def test_clearing_the_bar_at_both_ends_is_justified(self):
+        cheap = trip("BER", 700, ret_airport="BER", legs_expanded=True,
+                     night_layover=True)
+        apply_ground_cost([cheap], PARAMS)
+        self.assertEqual(night_verdict(cheap, self.base), "justified")
+
+    def test_missing_the_bar_at_both_ends_is_not_justified(self):
+        dear = trip("BER", 1100, ret_airport="BER", legs_expanded=True,
+                    night_layover=True)
+        apply_ground_cost([dear], PARAMS)
+        self.assertEqual(night_verdict(dear, self.base), "not_justified")
+
+    def test_borderline_cannot_happen_without_ground_costs(self):
+        base = trip("AMS", 933, legs_expanded=True, night_layover=False)
+        night = trip("BER", 939, legs_expanded=True, night_layover=True)
+        self.assertEqual(night_verdict(night, base), "not_justified")
+
+    def test_economics_records_both_ends_of_the_saving(self):
+        rows = [self.base, self.night]
+        apply_night_economics(rows, dict(PARAMS, night_discount={
+            "abs_eur": 150, "pct": 20}))
+        self.assertEqual(self.night["night_verdict"], "borderline")
+        self.assertEqual(self.night["night_saving_eur"], 114)
+        self.assertEqual(self.night["night_saving_hi_eur"], 234)
+
+
+class TestBaselineAssertion(unittest.TestCase):
+    def test_an_unexpanded_row_under_the_baseline_is_refused(self):
+        rows = [trip("AMS", 933, legs_expanded=True, night_layover=False),
+                trip("FRA", 800)]
+        with self.assertRaises(BaselineError) as caught:
+            assert_baseline_sound(rows)
+        self.assertIn("800", str(caught.exception))
+
+    def test_a_run_whose_cheapest_rows_were_all_expanded_passes(self):
+        rows = [trip("AMS", 933, legs_expanded=True, night_layover=False),
+                trip("FRA", 1200)]
+        assert_baseline_sound(rows)
+
+    def test_a_row_that_vanished_from_the_results_is_exempt(self):
+        rows = [trip("AMS", 933, legs_expanded=True, night_layover=False),
+                trip("FRA", 800, expansion_missing=True)]
+        assert_baseline_sound(rows)
+
+    def test_no_baseline_yet_is_not_an_error(self):
+        assert_baseline_sound([trip("FRA", 800)])
+
+    def test_it_compares_door_to_door_not_fares(self):
+        # AMS 933 baseline is 1053 door to door; a 1000 EUR Berlin fare is
+        # under that even though its fare is higher.
+        rows = [trip("AMS", 933, ret_airport="AMS", legs_expanded=True,
+                     night_layover=False),
+                trip("BER", 1000, ret_airport="BER")]
+        apply_ground_cost(rows, PARAMS)
+        with self.assertRaises(BaselineError):
+            assert_baseline_sound(rows)
+
+
+class TestExpansionCoversEveryOrigin(unittest.TestCase):
+    def rows(self):
+        out = []
+        for origin, base in (("FRA", 100), ("AMS", 200), ("HAM", 900)):
+            for i in range(6):
+                out.append(trip(origin, base + i, dep_time=f"0{i}:00",
+                                arr_time="20:00"))
+        return out
+
+    def test_the_dearest_origin_is_in_the_first_batch(self):
+        got = expansion_targets(self.rows(), want=3, want_clean=0)
+        self.assertIn("HAM", {t["origin"] for t in got})
+
+    def test_it_still_fills_the_budget_cheapest_first(self):
+        got = expansion_targets(self.rows(), want=6, want_clean=0)
+        self.assertEqual(len(got), 6)
+
+    def test_an_origin_with_no_clean_result_keeps_getting_tries(self):
+        rows = self.rows()
+        for row in rows:
+            if row["origin"] == "FRA" and row["dep_time"] < "02:00":
+                row["legs_expanded"] = True
+                row["night_layover"] = True
+        got = expansion_targets(rows, want=3, want_clean=0)
+        self.assertIn("FRA", {t["origin"] for t in got})
+
+    def test_it_gives_up_on_an_origin_after_max_per_origin_tries(self):
+        rows = self.rows()
+        for row in rows:
+            if row["origin"] == "FRA":
+                row["legs_expanded"] = True
+                row["night_layover"] = True
+        got = expansion_targets(rows, want=3, want_clean=0, max_per_origin=6)
+        self.assertNotIn("FRA", {t["origin"] for t in got})
+
+    def test_an_origin_with_a_clean_result_stops_being_starved(self):
+        rows = self.rows()
+        for row in rows:
+            if row["origin"] == "FRA":
+                row["legs_expanded"] = True
+                row["night_layover"] = row["price_eur"] != 100
+        got = expansion_targets(rows, want=3, want_clean=0)
+        self.assertNotIn("FRA", {t["origin"] for t in got})
 
 
 if __name__ == "__main__":

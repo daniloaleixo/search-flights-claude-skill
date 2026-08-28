@@ -8,22 +8,80 @@
     "MUC": "~4.5h by ICE, 70-140 EUR",
     "AMS": "~6.5h by ICE, 60-120 EUR"
   },
+  "ground_cost": {
+    "BER": [
+      0,
+      0
+    ],
+    "HAM": [
+      30,
+      80
+    ],
+    "FRA": [
+      70,
+      130
+    ],
+    "PRG": [
+      30,
+      60
+    ],
+    "MUC": [
+      70,
+      140
+    ],
+    "AMS": [
+      60,
+      120
+    ]
+  },
   "origins": [
-    {"code": "BER", "max_stops": 2, "ground": "home"},
-    {"code": "FRA", "max_stops": 1},
-    {"code": "HAM", "max_stops": 1},
-    {"code": "MUC", "max_stops": 1},
-    {"code": "PRG", "max_stops": 1},
-    {"code": "AMS", "max_stops": 1}
+    {
+      "code": "BER",
+      "max_stops": 2,
+      "ground": "home"
+    },
+    {
+      "code": "FRA",
+      "max_stops": 1
+    },
+    {
+      "code": "HAM",
+      "max_stops": 1
+    },
+    {
+      "code": "MUC",
+      "max_stops": 1
+    },
+    {
+      "code": "PRG",
+      "max_stops": 1
+    },
+    {
+      "code": "AMS",
+      "max_stops": 1
+    }
   ],
   "return_airports": "same_as_origins",
   "open_jaw": true,
   "ticket": "single",
-  "dep_window": ["2026-12-19", "2026-12-23"],
-  "ret_window": ["2027-02-09", "2027-02-12"],
+  "dep_window": [
+    "2026-12-19",
+    "2026-12-23"
+  ],
+  "ret_window": [
+    "2027-02-09",
+    "2027-02-12"
+  ],
   "pax": 1,
   "cabin": "economy",
   "currency": "EUR",
-  "night_layover_window": ["23:00", "06:00"],
-  "night_discount": {"abs_eur": 150, "pct": 20, "mode": "either"}
+  "night_layover_window": [
+    "23:00",
+    "06:00"
+  ],
+  "night_discount": {
+    "abs_eur": 150,
+    "pct": 20,
+    "mode": "either"
+  }
 }

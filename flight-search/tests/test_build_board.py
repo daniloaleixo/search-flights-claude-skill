@@ -1,9 +1,11 @@
 import unittest
 
-from scripts.build_board import (NIGHT_LABELS, _airport_section, _caveats_section,
+from scripts.build_board import (NIGHT_LABELS, _airport_section, _candidates,
+                                 _caveats_section, _night_pill,
                                  _ret_airports, airport_matrix,
                                  date_matrix, origin_matrix,
                                  render)
+from scripts.normalize import BaselineError, apply_ground_cost
 
 ORIGINS = ["BER", "FRA", "AMS"]
 RETS = ["BER", "FRA", "AMS"]
@@ -266,6 +268,117 @@ class TestRender(unittest.TestCase):
         # The Artifact tool supplies the skeleton; the file is page content.
         self.assertNotIn("<!doctype", self.html.lower())
         self.assertNotIn("<body", self.html.lower())
+
+
+GROUND_PARAMS = dict(PARAMS, ground_cost={"BER": [0, 0], "FRA": [70, 130],
+                                          "AMS": [60, 120]})
+
+
+def banded(trips, params=GROUND_PARAMS):
+    rows = [dict(t) for t in trips]
+    apply_ground_cost(rows, params)
+    return rows
+
+
+class TestDoorToDoorOnThePage(unittest.TestCase):
+    def test_the_masthead_carries_a_door_to_door_figure(self):
+        html = markup(render(banded(TRIPS), GROUND_PARAMS, COVERAGE))
+        self.assertIn("Cheapest door to door", html)
+
+    def test_it_says_so_when_no_ground_cost_was_given(self):
+        html = markup(render(TRIPS, PARAMS, COVERAGE))
+        self.assertIn("Cheapest door to door", html)
+        self.assertIn("no ground costs were given", html)
+
+    def test_a_card_shows_the_band_and_what_the_ground_adds(self):
+        html = markup(render(banded(TRIPS), GROUND_PARAMS, COVERAGE))
+        self.assertIn("door to door", html)
+        self.assertIn("ground", html)
+
+    def rank_rows(self):
+        # AMS at 1151 is the cheaper fare; BER at 1200 is the cheaper trip,
+        # because AMS carries 120 to 240 EUR of train and BER carries none.
+        return banded([dict(TRIPS[0], origin="AMS", ret_airport="AMS"),
+                       dict(TRIPS[1], origin="BER", ret_airport="BER",
+                            price_eur=1200)])
+
+    def test_the_shortlist_ranks_on_the_band_not_the_fare(self):
+        picks = _candidates(self.rank_rows())
+        door = [p for p in picks if "cheapest door to door" in p["why"]]
+        self.assertEqual(door[0]["trip"]["origin"], "BER")
+
+    def test_the_cheapest_fare_still_gets_its_own_card(self):
+        picks = _candidates(self.rank_rows())
+        fare = [p for p in picks if "cheapest fare on the board" in p["why"]]
+        self.assertEqual(fare[0]["trip"]["origin"], "AMS")
+
+    def test_the_fare_column_is_never_moved_by_ground_cost(self):
+        html = markup(render(banded(TRIPS), GROUND_PARAMS, COVERAGE))
+        self.assertIn("1151", html)
+        self.assertNotIn("1271", html.replace("1271 ", ""))
+
+
+class TestBorderlineRendering(unittest.TestCase):
+    def test_the_pill_names_the_range_rather_than_a_verdict(self):
+        pill = _night_pill({"night_verdict": "borderline",
+                            "night_saving_eur": 114,
+                            "night_saving_hi_eur": 234})
+        self.assertIn("114 to 234", pill)
+        self.assertIn("pill--borderline", pill)
+
+    def test_borderline_has_its_own_label(self):
+        self.assertIn("too close to call", NIGHT_LABELS["borderline"])
+
+    def test_the_caveats_explain_what_decides_a_borderline_row(self):
+        rows = banded(TRIPS)
+        rows[0]["night_verdict"] = "borderline"
+        html = _caveats_section(rows, GROUND_PARAMS, ORIGINS, COVERAGE)
+        self.assertIn("Verdicts the ground estimate decides", html)
+
+    def test_no_borderline_rows_means_no_such_caveat(self):
+        html = _caveats_section(banded(TRIPS), GROUND_PARAMS, ORIGINS, COVERAGE)
+        self.assertNotIn("Verdicts the ground estimate decides", html)
+
+
+class TestGroundCaveat(unittest.TestCase):
+    def test_it_says_the_estimate_is_not_in_the_fare(self):
+        html = _caveats_section(banded(TRIPS), GROUND_PARAMS, ORIGINS, COVERAGE)
+        self.assertIn("not in the fare", html)
+
+    def test_it_names_the_airports_with_no_ground_cost(self):
+        params = dict(PARAMS, ground_cost={"BER": [0, 0], "AMS": [60, 120]})
+        html = _caveats_section(banded(TRIPS, params), params, ORIGINS, COVERAGE)
+        self.assertIn("No ground cost was given for FRA", html)
+
+    def test_a_run_with_no_ground_costs_gets_no_such_caveat(self):
+        html = _caveats_section(TRIPS, PARAMS, ORIGINS, COVERAGE)
+        self.assertNotIn("not in the fare", html)
+
+
+class TestVanishedRows(unittest.TestCase):
+    def test_the_caveats_name_rows_that_could_not_be_re_found(self):
+        rows = [dict(t) for t in TRIPS]
+        rows[2]["expansion_missing"] = True
+        html = _caveats_section(rows, PARAMS, ORIGINS, COVERAGE)
+        self.assertIn("had vanished by the time we went back", html)
+
+    def test_no_such_caveat_when_every_row_was_reachable(self):
+        html = _caveats_section(TRIPS, PARAMS, ORIGINS, COVERAGE)
+        self.assertNotIn("had vanished by the time we went back", html)
+
+
+class TestBaselineGate(unittest.TestCase):
+    def rows(self):
+        clean = dict(TRIPS[1], legs_expanded=True, night_layover=False)
+        return [dict(TRIPS[0]), clean, dict(TRIPS[2])]
+
+    def test_the_board_refuses_a_baseline_an_unexpanded_row_undercuts(self):
+        rows = self.rows() + [dict(TRIPS[2], id="t5", price_eur=900)]
+        with self.assertRaises(BaselineError):
+            render(rows, PARAMS, COVERAGE)
+
+    def test_a_sound_run_renders(self):
+        self.assertIn("<title>", render(self.rows(), PARAMS, COVERAGE))
 
 
 if __name__ == "__main__":
