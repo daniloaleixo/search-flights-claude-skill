@@ -1,0 +1,226 @@
+{
+  "destination": "Ipanema / Copacabana, Rio de Janeiro",
+  "currency": "EUR",
+  "guests": 5,
+  "date_pairs": [
+    [
+      "2026-12-22",
+      "2026-12-27"
+    ],
+    [
+      "2026-12-22",
+      "2026-12-28"
+    ],
+    [
+      "2026-12-23",
+      "2026-12-27"
+    ],
+    [
+      "2026-12-23",
+      "2026-12-28"
+    ]
+  ],
+  "search": {
+    "path": "/s/Rio-de-Janeiro--Brazil/homes",
+    "min_bedrooms": 2,
+    "room_type": "Entire home/apt",
+    "amenity_ids": [
+      4,
+      5,
+      9
+    ],
+    "boxes": {
+      "ipa": {
+        "ne": [
+          -22.977,
+          -43.189
+        ],
+        "sw": [
+          -22.99,
+          -43.216
+        ]
+      },
+      "copS": {
+        "ne": [
+          -22.97,
+          -43.18
+        ],
+        "sw": [
+          -22.99,
+          -43.196
+        ]
+      },
+      "copN": {
+        "ne": [
+          -22.96,
+          -43.164
+        ],
+        "sw": [
+          -22.976,
+          -43.184
+        ]
+      }
+    },
+    "zones": {
+      "_doc": "Area label from the map pin: first box [ne_lat, ne_lng, sw_lat, sw_lng] containing it wins, else 'default'. Airbnb's card titles mislabel the Ipanema/Copacabana border.",
+      "boxes": [
+        [
+          "Ipanema",
+          [
+            -22.979,
+            -43.1915,
+            -22.995,
+            -43.225
+          ]
+        ],
+        [
+          "Leme",
+          [
+            -22.955,
+            -43.16,
+            -22.968,
+            -43.1712
+          ]
+        ]
+      ],
+      "default": "Copacabana"
+    }
+  },
+  "beach": {
+    "lines": "references/rio_beachfront.json",
+    "block_m": 130,
+    "pin_fuzz_m": 150
+  },
+  "must_have": [
+    {
+      "key": "wifi",
+      "label": "Wifi",
+      "kind": "amenity",
+      "patterns": [
+        "^(fast )?wi-?fi\\b"
+      ],
+      "search_filtered": true
+    },
+    {
+      "key": "ac",
+      "label": "Air conditioning",
+      "kind": "amenity",
+      "patterns": [
+        "air conditioning",
+        "^(window )?ac\\b",
+        "^ac - "
+      ],
+      "search_filtered": true
+    },
+    {
+      "key": "parking",
+      "label": "Garage spot (on premises)",
+      "kind": "amenity",
+      "patterns": [
+        "parking on premises",
+        "garage on premises",
+        "parking garage on premises"
+      ],
+      "search_filtered": true
+    },
+    {
+      "key": "guests",
+      "label": "Sleeps 5",
+      "kind": "min_guests",
+      "value": 5
+    },
+    {
+      "key": "beach",
+      "label": "≤ 4 blocks to beach",
+      "kind": "max_blocks",
+      "value": 4,
+      "slack_m": 80
+    }
+  ],
+  "nice_to_have": [
+    {
+      "key": "br3",
+      "label": "3 bedrooms",
+      "kind": "min_bedrooms",
+      "value": 3,
+      "weight": 3
+    },
+    {
+      "key": "sqm100",
+      "label": "≥ 100 m²",
+      "kind": "min_sqm",
+      "value": 100,
+      "weight": 1.5
+    },
+    {
+      "key": "top_rated",
+      "label": "Rated ≥ 4.8 (10+ reviews)",
+      "kind": "min_rating",
+      "value": 4.8,
+      "min_reviews": 10,
+      "weight": 2
+    },
+    {
+      "key": "seaview",
+      "label": "Sea view",
+      "kind": "text",
+      "patterns": [
+        "ocean view",
+        "sea view",
+        "beach view",
+        "vista (para o )?mar",
+        "frente (para o |ao )?mar",
+        "beachfront",
+        "oceanfront",
+        "waterfront",
+        "sea ?front",
+        "ocean ?front",
+        "facing the sea"
+      ],
+      "weight": 1.5
+    },
+    {
+      "key": "washer",
+      "label": "Washer",
+      "kind": "amenity",
+      "patterns": [
+        "^washer"
+      ],
+      "weight": 0.5
+    },
+    {
+      "key": "elevator",
+      "label": "Elevator",
+      "kind": "amenity",
+      "patterns": [
+        "^elevator"
+      ],
+      "weight": 0.5
+    },
+    {
+      "key": "pool",
+      "label": "Pool",
+      "kind": "amenity",
+      "patterns": [
+        "pool"
+      ],
+      "weight": 0.5
+    },
+    {
+      "key": "free_cancel",
+      "label": "Free cancellation",
+      "kind": "payment_message",
+      "patterns": [
+        "free cancellation"
+      ],
+      "weight": 1
+    }
+  ],
+  "rank_weights": {
+    "price": 0.45,
+    "features": 0.3,
+    "reviews": 0.25
+  },
+  "budget_total": 1200,
+  "budget_per_night": 250
+}

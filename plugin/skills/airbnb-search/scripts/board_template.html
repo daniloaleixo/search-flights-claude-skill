@@ -1,0 +1,353 @@
+<meta charset="utf-8">
+<title>__TITLE__</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a calçadão wave band over a summary strip, then one wide sortable ledger of stays. */
+:root {
+  --sand: #f6f3ee;
+  --paper: #fffdf9;
+  --ink: #1b1d1f;
+  --muted: #6b6a66;
+  --line: #e3ded4;
+  --sea: #0f5f73;
+  --sea-soft: #dcecef;
+  --good: #2f7d4f;
+  --good-soft: #e1f0e6;
+  --warn: #a8641a;
+  --bad: #b23b33;
+  --bad-soft: #f6e2df;
+  --best: #fff2c7;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --sand: #121516; --paper: #1a1e20; --ink: #ecebe7; --muted: #9a9993; --line: #2c3234;
+    --sea: #6cc3d6; --sea-soft: #173238; --good: #6fc791; --good-soft: #17301f;
+    --warn: #e0a35a; --bad: #ef8a80; --bad-soft: #3a1c19; --best: #3a3215; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --sand: #121516; --paper: #1a1e20; --ink: #ecebe7; --muted: #9a9993; --line: #2c3234;
+  --sea: #6cc3d6; --sea-soft: #173238; --good: #6fc791; --good-soft: #17301f;
+  --warn: #e0a35a; --bad: #ef8a80; --bad-soft: #3a1c19; --best: #3a3215; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--sand); color: var(--ink); font-family: var(--body); font-size: 14px; line-height: 1.45; }
+.wrap { padding-inline: 16px; padding-block: 0 48px; max-width: 1480px; margin: 0 auto; }
+.wave { height: 34px; color: var(--ink); background: var(--paper); border-bottom: 1px solid var(--line); }
+.wave svg { display: block; width: 100%; height: 34px; }
+header.mast { display: grid; gap: 6px; padding-block: 28px 18px; }
+.eyebrow { font: 500 11px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--sea); }
+h1 { font: 700 clamp(28px, 4.5vw, 46px)/1.02 var(--display); margin: 0; text-wrap: balance; letter-spacing: -.01em; }
+.sub { color: var(--muted); max-width: 70ch; margin: 0; }
+.picks { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-block: 8px 22px; }
+.pick { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 4px; min-width: 0; }
+.pick .k { font: 500 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.pick a { font: 600 15px/1.25 var(--body); color: var(--ink); text-decoration: none; }
+.pick a:hover { color: var(--sea); text-decoration: underline; }
+.pick .v { font: 500 22px/1.1 var(--display); color: var(--sea); font-variant-numeric: tabular-nums; }
+.pick .m { color: var(--muted); font-size: 12.5px; }
+.criteria { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
+.crit { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; min-width: 0; }
+.crit h2 { font: 600 12px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; margin: 0 0 10px; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 12.5px; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--sand); white-space: nowrap; }
+.chip.must { border-color: var(--sea); color: var(--sea); background: var(--sea-soft); font-weight: 500; }
+.chip small { color: var(--muted); font-family: var(--mono); margin-left: 4px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; padding-block: 12px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin-bottom: 12px; position: sticky; top: env(safe-area-inset-top, 0px); background: var(--sand); z-index: 5; }
+.ctl { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ctl > span { font: 500 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--paper); flex-wrap: wrap; }
+.seg button { font: 500 12.5px var(--body); border: 0; background: transparent; color: var(--ink); padding: 6px 10px; cursor: pointer; border-right: 1px solid var(--line); }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--sea); color: var(--paper); }
+.seg button:focus-visible, .tog input:focus-visible { outline: 2px solid var(--sea); outline-offset: 2px; }
+.tog { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+.count { margin-left: auto; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.ledger { overflow-x: auto; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; min-width: 1180px; font-variant-numeric: tabular-nums; }
+th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+thead th { font: 500 11px/1.2 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--paper); position: sticky; top: 0; white-space: nowrap; }
+thead th.sortable { cursor: pointer; }
+thead th.sortable:hover { color: var(--sea); }
+thead th.on { color: var(--sea); }
+th.n, td.n { text-align: right; }
+th.c, td.c { text-align: center; }
+td.rank { font: 500 13px var(--mono); color: var(--muted); width: 34px; }
+.nm a { color: var(--ink); font-weight: 600; text-decoration: none; }
+.nm a:hover { color: var(--sea); text-decoration: underline; }
+.nm .meta { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.badge { font: 500 10.5px var(--mono); letter-spacing: .04em; padding: 1px 6px; border-radius: 4px; background: var(--sea-soft); color: var(--sea); margin-left: 6px; white-space: nowrap; }
+.mark { display: inline-block; width: 18px; height: 18px; line-height: 18px; border-radius: 50%; font-size: 11px; font-weight: 600; text-align: center; }
+.mark.y { background: var(--good-soft); color: var(--good); }
+.mark.n { color: var(--muted); }
+.mark.q { color: var(--warn); }
+.pr { white-space: nowrap; }
+.pr .pn { color: var(--muted); font-size: 11.5px; display: block; }
+.pr.sel { background: var(--sea-soft); }
+.pr.low b { color: var(--good); }
+.pr.na { color: var(--muted); }
+.pr.over { opacity: .45; }
+.pr.over b { text-decoration: line-through; text-decoration-thickness: 1px; }
+.score { font: 600 14px var(--mono); }
+.bar { height: 4px; background: var(--line); border-radius: 2px; margin-top: 4px; width: 60px; margin-left: auto; }
+.bar i { display: block; height: 100%; background: var(--sea); border-radius: 2px; }
+.beach, td.lay { white-space: nowrap; }
+.beach small { display: block; color: var(--muted); font-size: 11.5px; }
+tr.top td { background: color-mix(in srgb, var(--best) 55%, transparent); }
+.note { color: var(--muted); font-size: 12.5px; max-width: 90ch; margin-top: 14px; }
+details.out { margin-top: 20px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+details.out summary { cursor: pointer; font-weight: 600; }
+details.out ul { margin: 10px 0 0; padding-left: 18px; columns: 2 320px; font-size: 12.5px; }
+details.out li { break-inside: avoid; margin-bottom: 4px; }
+.why { color: var(--bad); }
+@media (max-width: 720px) { .criteria { grid-template-columns: 1fr; } .count { margin-left: 0; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wave" aria-hidden="true">
+  <svg viewBox="0 0 1200 34" preserveAspectRatio="none">
+    <defs>
+      <pattern id="calcadao" width="120" height="34" patternUnits="userSpaceOnUse">
+        <path d="M0 17 C 20 -3, 40 -3, 60 17 S 100 37, 120 17 L120 34 L0 34 Z" fill="currentColor"/>
+      </pattern>
+    </defs>
+    <rect width="1200" height="34" fill="url(#calcadao)"/>
+  </svg>
+</div>
+
+<div class="wrap">
+  <header class="mast">
+    <div class="eyebrow" id="eyebrow"></div>
+    <h1 id="h1"></h1>
+    <p class="sub" id="sub"></p>
+  </header>
+
+  <section class="picks" id="picks"></section>
+
+  <section class="criteria">
+    <div class="crit"><h2 data-t="need"></h2><div class="chips" id="mustChips"></div></div>
+    <div class="crit"><h2 data-t="nice"></h2><div class="chips" id="niceChips"></div></div>
+  </section>
+
+  <div class="controls" role="toolbar">
+    <div class="ctl"><span data-t="dates"></span><div class="seg" id="pairSeg"></div></div>
+    <div class="ctl"><span data-t="rankBy"></span><div class="seg" id="sortSeg"></div></div>
+    <div class="ctl"><span data-t="area"></span><div class="seg" id="areaSeg"></div></div>
+    <label class="tog"><input type="checkbox" id="br3"> <span data-t="br3only"></span></label>
+    <label class="tog"><input type="checkbox" id="showOver"> <span data-t="showOver"></span></label>
+    <div class="count" id="count"></div>
+  </div>
+
+  <div class="ledger"><table>
+    <thead><tr id="thead"></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table></div>
+
+  <p class="note" id="note"></p>
+  <details class="out" id="out"><summary id="outSum"></summary><ul id="outList"></ul></details>
+</div>
+
+<script>
+const D = __DATA__;
+const I18N = {
+  en: {
+    locale: 'en-IE', need: 'Need to have', nice: 'Nice to have · weight', dates: 'Dates', rankBy: 'Rank by', area: 'Area',
+    br3only: '3+ bedrooms only', showOver: 'Show over-budget', all: 'All', cheapestOfN: n => `Cheapest of ${n}`,
+    sort: { overall: 'Overall', price: 'Price', features: 'Features', reviews: 'Reviews', beach: 'Beach', size: 'Size' },
+    th: { stay: 'Stay', beach: 'Beach', layout: 'Layout', rating: 'Rating', perNight: 'Per night', score: 'Score' },
+    short: { br3: '3 BR', sqm100: '100m²', top_rated: '4.8★', seaview: 'Sea', washer: 'Wash', elevator: 'Lift', pool: 'Pool', free_cancel: 'Free canc.' },
+    yes: 'Yes', no: 'No', unknown: 'Unknown', total: 'total', or: 'or', night: 'night',
+    count: (a, o, n) => `${a} within budget · ${o} over budget · ${n} not offered on these dates`,
+    guestFav: 'Guest fav', superhost: 'Superhost', block: n => n === 0 ? 'beachfront' : `≈ ${n} block${n === 1 ? '' : 's'}`,
+    layout: (b, beds, ba) => `${b} bd · ${beds} beds · ${ba} ba`, sleeps: n => `sleeps ${n}`, isNew: 'New', reviews: n => `${n} reviews`,
+    toBeach: m => `${m} m to the beach`, bd: 'bd', newShort: 'new',
+    picks: { overall: 'Best overall', cheapest: 'Cheapest', br3: 'Best 3-bedroom', rated: 'Best reviewed (20+)' },
+    eyebrow: (d, g) => `${d} · ${g} guests`, h1: n => `${n} stays clear every must-have`,
+    budget: b => `Budget: at most ${b}, on at least one of the date options. `,
+    sub: (s, p, c, at) => `Out of ${s} entire places with 2+ bedrooms near the beach that Airbnb returned across ${p} date combinations. Prices are Airbnb's total for the stay in ${c}, read from the search results${at ? ' on ' + at : ''}. Click any price to open that listing on those dates.`,
+    note: (wp, wf, wr) => `Score = ${wp}% price rank on the selected dates + ${wf}% nice-to-haves (by weight) + ${wr}% reviews (rating shrunk toward 4.6 when reviews are few). Beach distance is from the listing's map pin to the beachfront avenue; Airbnb blurs pins by up to ~150 m, so treat it as ±1 block. m² comes from the host's description and is blank when the host didn't state it.`,
+    failed: n => `${n} listings failed a must-have`, amen: {},
+  },
+  'pt-BR': {
+    locale: 'pt-BR', need: 'Obrigatório', nice: 'Desejável · peso', dates: 'Datas', rankBy: 'Ordenar por', area: 'Bairro',
+    br3only: 'Só 3+ quartos', showOver: 'Mostrar acima do orçamento', all: 'Todos', cheapestOfN: n => `Mais barata das ${n}`,
+    sort: { overall: 'Geral', price: 'Preço', features: 'Comodidades', reviews: 'Avaliações', beach: 'Praia', size: 'Tamanho' },
+    th: { stay: 'Imóvel', beach: 'Praia', layout: 'Configuração', rating: 'Nota', perNight: 'Por noite', score: 'Pontuação' },
+    short: { br3: '3 qtos', sqm100: '100m²', top_rated: '4,8★', seaview: 'Vista mar', washer: 'Lavadora', elevator: 'Elevador', pool: 'Piscina', free_cancel: 'Canc. grátis' },
+    yes: 'Sim', no: 'Não', unknown: 'Não informado', total: 'total', or: 'ou', night: 'noite',
+    count: (a, o, n) => `${a} dentro do orçamento · ${o} acima do orçamento · ${n} indisponíveis nessas datas`,
+    guestFav: 'Preferido dos hóspedes', superhost: 'Superhost', block: n => n === 0 ? 'na orla' : `≈ ${n} ${n === 1 ? 'quarteirão' : 'quarteirões'}`,
+    layout: (b, beds, ba) => `${b} qto${b == 1 ? '' : 's'} · ${beds} cama${beds == 1 ? '' : 's'} · ${ba} banh.`, sleeps: n => `acomoda ${n}`, isNew: 'Novo', reviews: n => `${n} avaliaç${n == 1 ? 'ão' : 'ões'}`,
+    toBeach: m => `${m} m da praia`, bd: 'qtos', newShort: 'novo',
+    picks: { overall: 'Melhor no geral', cheapest: 'Mais barato', br3: 'Melhor com 3 quartos', rated: 'Mais bem avaliado (20+)' },
+    eyebrow: (d, g) => `${d} · ${g} hóspedes`, h1: n => `${n} imóveis atendem todos os requisitos`,
+    budget: b => `Orçamento: no máximo ${b}, em pelo menos uma das opções de data. `,
+    sub: (s, p, c, at) => `De ${s} imóveis inteiros com 2+ quartos perto da praia que o Airbnb retornou em ${p} combinações de datas. Os preços são o total da estadia no Airbnb em ${c}, lidos dos resultados de busca${at ? ' em ' + at : ''}. Clique em qualquer preço para abrir o anúncio nessas datas.`,
+    note: (wp, wf, wr) => `Pontuação = ${wp}% posição no preço nas datas escolhidas + ${wf}% itens desejáveis (por peso) + ${wr}% avaliações (nota puxada para 4,6 quando há poucas avaliações). A distância da praia é medida do pino do anúncio no mapa até a avenida da orla; o Airbnb desloca os pinos em até ~150 m, então considere ±1 quarteirão. O m² vem da descrição do anfitrião e fica em branco quando ele não informou.`,
+    failed: n => `${n} anúncios não atendem algum requisito obrigatório`,
+    amen: { 'Free parking on premises': 'Estacionamento gratuito no local', 'Free parking garage on premises': 'Garagem gratuita no prédio', 'Free residential garage on premises': 'Garagem residencial gratuita no local', 'Paid parking on premises': 'Estacionamento pago no local', 'Paid parking garage on premises': 'Garagem paga no prédio', 'space': 'vaga', 'spaces': 'vagas' },
+  },
+};
+const T = I18N[D.lang] || I18N.en;
+const tr = s => s.replace(/^([^–]+?)(\s*–\s*(\d+)\s*(spaces?))?$/, (m, a, rest, n, sp) => (T.amen[a.trim()] || a.trim()) + (rest ? ` – ${n} ${T.amen[sp] || sp}` : ''));
+document.documentElement.lang = D.lang || 'en';
+document.querySelectorAll('[data-t]').forEach(el => { el.textContent = T[el.dataset.t]; });
+const cur = new Intl.NumberFormat(T.locale, { style: 'currency', currency: D.currency, maximumFractionDigits: 0 });
+const dec = (x, d) => x.toLocaleString(T.locale, { minimumFractionDigits: d, maximumFractionDigits: d });
+const state = { pair: 'best', sort: 'overall', area: 'all', br3: false, dir: 1 };
+try { Object.assign(state, JSON.parse(localStorage.getItem('stayboard') || '{}')); } catch (e) {}
+const save = () => { try { localStorage.setItem('stayboard', JSON.stringify(state)); } catch (e) {} };
+
+const areaOf = L => L.area || 'Other';
+D.listings.forEach(L => { L.zone = areaOf(L); });
+const eligible = D.listings.filter(L => Object.values(L.must).every(v => v !== false));
+const excluded = D.listings.filter(L => !eligible.includes(L));
+
+// Either cap is enough: the user accepts a stay within the total OR within the nightly rate.
+const inBudget = x => x && ((!D.budget && !D.budget_night) || (D.budget && x.total <= D.budget) || (D.budget_night && x.per_night <= D.budget_night));
+const budgetText = () => [D.budget && `${cur.format(D.budget)} ${T.total}`, D.budget_night && `${cur.format(D.budget_night)}/${T.night}`].filter(Boolean).join(` ${T.or} `);
+// A price over the budget is not an offer the user can take, so it never ranks.
+function priceFor(L) {
+  if (state.pair === 'best') {
+    let best = null;
+    for (const p of D.pairs) { const x = L.prices[p.key]; if (inBudget(x) && (!best || x.per_night < best.per_night)) best = { ...x, key: p.key }; }
+    return best;
+  }
+  const x = L.prices[state.pair]; return inBudget(x) ? { ...x, key: state.pair } : null;
+}
+const offered = L => state.pair === 'best' ? D.pairs.some(p => L.prices[p.key]) : !!L.prices[state.pair];
+const niceW = D.nice.reduce((s, n) => s + n.weight, 0);
+const featureScore = L => D.nice.reduce((s, n) => s + (L.nice[n.key] === true ? n.weight : 0), 0) / niceW;
+function reviewScore(L) {
+  const prior = 4.6, k = 3, n = L.reviews || 0, r = L.rating || prior;
+  const bayes = (r * n + prior * k) / (n + k);
+  return Math.max(0, Math.min(1, (bayes - 4.3) / 0.7));
+}
+function scoreAll(rows) {
+  const priced = rows.filter(r => r.p).sort((a, b) => a.p.per_night - b.p.per_night);
+  priced.forEach((r, i) => { r.ps = priced.length > 1 ? 1 - i / (priced.length - 1) : 1; });
+  rows.forEach(r => {
+    r.fs = featureScore(r.L); r.rs = reviewScore(r.L);
+    r.score = r.p ? D.weights.price * r.ps + D.weights.features * r.fs + D.weights.reviews * r.rs : -1;
+  });
+}
+const sorters = {
+  overall: (a, b) => b.score - a.score,
+  price: (a, b) => (a.p ? a.p.per_night : 1e9) - (b.p ? b.p.per_night : 1e9),
+  features: (a, b) => b.fs - a.fs || (a.p ? a.p.per_night : 1e9) - (b.p ? b.p.per_night : 1e9),
+  reviews: (a, b) => b.rs - a.rs || (b.L.reviews || 0) - (a.L.reviews || 0),
+  beach: (a, b) => a.L.beach_m - b.L.beach_m,
+  size: (a, b) => (b.L.sqm || 0) - (a.L.sqm || 0),
+};
+const sortNames = T.sort;
+
+function link(L, key) {
+  const p = D.pairs.find(x => x.key === key) || D.pairs[0];
+  return `https://www.airbnb.com/rooms/${L.id}?check_in=${p.ci}&check_out=${p.co}&adults=${D.guests}`;
+}
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const num = x => x == null ? '–' : (Number.isInteger(x) ? x : dec(x, 1));
+const mark = v => v === true ? `<span class="mark y" title="${T.yes}">✓</span>` : v === false ? `<span class="mark n" title="${T.no}">·</span>` : `<span class="mark q" title="${T.unknown}">?</span>`;
+
+function seg(el, items, key) {
+  el.innerHTML = items.map(([v, t]) => `<button type="button" data-v="${v}" aria-pressed="${state[key] === v}">${t}</button>`).join('');
+  el.onclick = e => { const b = e.target.closest('button'); if (!b) return; state[key] = b.dataset.v; save(); render(); };
+}
+
+function header() {
+  const sortTh = (k, label, cls = '') => `<th class="sortable ${cls} ${state.sort === k ? 'on' : ''}" data-sort="${k}">${label}</th>`;
+  document.getElementById('thead').innerHTML =
+    '<th>#</th>' + sortTh('overall', T.th.stay) + sortTh('beach', T.th.beach) + `<th>${T.th.layout}</th>` + sortTh('size', 'm²', 'n') +
+    sortTh('reviews', T.th.rating, 'n') +
+    D.nice.map(n => `<th class="c" title="${esc(n.label)}">${esc(shortLabel(n))}</th>`).join('') +
+    D.pairs.map(p => `<th class="n ${state.pair === p.key ? 'on' : ''}">${esc(p.label.split(' · ')[0])}<br><small>${p.label.split(' · ')[1] || ''}</small></th>`).join('') +
+    sortTh('price', T.th.perNight, 'n') + sortTh('overall', T.th.score, 'n');
+  document.querySelectorAll('th[data-sort]').forEach(th => th.onclick = () => { state.sort = th.dataset.sort; save(); render(); });
+}
+function shortLabel(n) {
+  return T.short[n.key] || n.label;
+}
+
+function render() {
+  seg(document.getElementById('pairSeg'), [['best', T.cheapestOfN(D.pairs.length)], ...D.pairs.map(p => [p.key, p.label.split(' · ')[0]])], 'pair');
+  seg(document.getElementById('sortSeg'), Object.entries(sortNames), 'sort');
+  seg(document.getElementById('areaSeg'), [['all', T.all], ...(D.zones.length ? D.zones : [...new Set(D.listings.map(L => L.zone))]).map(z => [z, z])], 'area');
+  document.getElementById('br3').checked = state.br3;
+  document.getElementById('showOver').checked = !!state.showOver;
+  header();
+
+  let rows = eligible.map(L => ({ L, p: priceFor(L) }));
+  scoreAll(rows);
+  rows = rows.filter(r => (state.area === 'all' || r.L.zone === state.area) && (!state.br3 || (r.L.bedrooms || 0) >= 3));
+  rows.sort((a, b) => (!!b.p - !!a.p) || sorters[state.sort](a, b));
+  const priced = rows.filter(r => r.p);
+  const lowNight = priced.length ? Math.min(...priced.map(r => r.p.per_night)) : 0;
+
+  const over = rows.filter(r => !r.p && offered(r.L)).length;
+  document.getElementById('count').textContent = T.count(priced.length, over, rows.length - priced.length - over);
+  rows = rows.filter(r => r.p || state.showOver);
+  document.getElementById('tbody').innerHTML = rows.map((r, i) => {
+    const L = r.L;
+    const cells = D.pairs.map(p => {
+      const x = L.prices[p.key];
+      const cls = ['pr', 'n', state.pair === p.key || (state.pair === 'best' && r.p && r.p.key === p.key) ? 'sel' : '', x && x.per_night === lowNight ? 'low' : '', x && !inBudget(x) ? 'over' : ''].join(' ');
+      return x ? `<td class="${cls}"><a href="${link(L, p.key)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none"><b>${cur.format(x.total)}</b></a><span class="pn">${cur.format(x.per_night)}/${T.night}</span></td>`
+               : `<td class="pr n na">–</td>`;
+    }).join('');
+    const badge = /guest favorite/i.test(L.badges) ? `<span class="badge">${T.guestFav}</span>` : /superhost/i.test(L.badges) ? `<span class="badge">${T.superhost}</span>` : '';
+    const park = L.parking_amenity ? esc(tr(L.parking_amenity)) : '';
+    return `<tr class="${i < 3 && state.sort === 'overall' && r.p ? 'top' : ''}">
+      <td class="rank">${r.p ? i + 1 : ''}</td>
+      <td class="nm"><a href="${link(L, r.p ? r.p.key : D.pairs[0].key)}" target="_blank" rel="noopener">${esc(L.name)}</a>${badge}
+        <div class="meta">${L.zone}${park ? ' · ' + park : ''}</div></td>
+      <td class="beach">${L.beach_m} m<small>${T.block(L.blocks)}</small></td>
+      <td class="lay">${T.layout(num(L.bedrooms), num(L.beds), num(L.baths))}<div class="meta" style="color:var(--muted);font-size:12px">${T.sleeps(L.cap ?? '?')}</div></td>
+      <td class="n"${L.sqm_ctx ? ` title="${esc(L.sqm_ctx)}"` : ''}>${L.sqm ? Math.round(L.sqm) : '–'}</td>
+      <td class="n">${L.rating ? dec(L.rating, 2) : T.isNew}<div class="meta" style="color:var(--muted);font-size:12px">${T.reviews(L.reviews || 0)}</div></td>
+      ${D.nice.map(n => `<td class="c">${mark(L.nice[n.key])}</td>`).join('')}
+      ${cells}
+      <td class="n pr">${r.p ? `<b>${cur.format(r.p.per_night)}</b>` : '–'}</td>
+      <td class="n">${r.p ? `<span class="score">${Math.round(r.score * 100)}</span><div class="bar"><i style="width:${Math.round(r.score * 100)}%"></i></div>` : ''}</td>
+    </tr>`;
+  }).join('');
+  picks(priced);
+}
+
+function picks(priced) {
+  const byScore = [...priced].sort(sorters.overall)[0];
+  const cheapest = [...priced].sort(sorters.price)[0];
+  const br3 = [...priced].filter(r => (r.L.bedrooms || 0) >= 3).sort(sorters.overall)[0];
+  const rated = [...priced].filter(r => (r.L.reviews || 0) >= 20).sort(sorters.reviews)[0];
+  const card = (k, r, v) => r ? `<div class="pick"><div class="k">${k}</div><a href="${link(r.L, r.p.key)}" target="_blank" rel="noopener">${esc(r.L.name)}</a>
+    <div class="v">${v(r)}</div><div class="m">${r.L.zone} · ${num(r.L.bedrooms)} ${T.bd} · ${T.toBeach(r.L.beach_m)} · ${r.L.rating ? dec(r.L.rating, 2) + '★' : T.newShort} · ${(D.pairs.find(p => p.key === r.p.key) || {}).label || ''}</div></div>` : '';
+  document.getElementById('picks').innerHTML =
+    card(T.picks.overall, byScore, r => `${cur.format(r.p.total)} <small style="font-size:13px;color:var(--muted)">${T.total}</small>`) +
+    card(T.picks.cheapest, cheapest, r => `${cur.format(r.p.total)} <small style="font-size:13px;color:var(--muted)">${T.total}</small>`) +
+    card(T.picks.br3, br3, r => `${cur.format(r.p.total)} <small style="font-size:13px;color:var(--muted)">${T.total}</small>`) +
+    card(T.picks.rated, rated, r => `${dec(r.L.rating, 2)}★ · ${cur.format(r.p.total)}`);
+}
+
+(function intro() {
+  document.getElementById('eyebrow').textContent = T.eyebrow(D.destination, D.guests);
+  const fits = eligible.filter(L => D.pairs.some(p => inBudget(L.prices[p.key]))).length;
+  document.getElementById('h1').textContent = T.h1(fits);
+  document.getElementById('sub').textContent =
+    (D.budget || D.budget_night ? T.budget(budgetText()) : '') + T.sub(D.searched, D.pairs.length, D.currency, D.captured);
+  document.getElementById('mustChips').innerHTML = (D.budget || D.budget_night ? `<span class="chip must">≤ ${budgetText()}</span>` : '') + D.must.map(m => `<span class="chip must">${esc(m.label)}</span>`).join('');
+  document.getElementById('niceChips').innerHTML = D.nice.map(n => `<span class="chip">${esc(n.label)}<small>×${n.weight.toLocaleString(T.locale)}</small></span>`).join('');
+  document.getElementById('note').textContent =
+    T.note(Math.round(D.weights.price * 100), Math.round(D.weights.features * 100), Math.round(D.weights.reviews * 100));
+  const reasons = L => D.must.filter(m => L.must[m.key] === false).map(m => m.label).join(', ');
+  document.getElementById('outSum').textContent = T.failed(excluded.length);
+  document.getElementById('outList').innerHTML = excluded.map(L =>
+    `<li><a href="${link(L, D.pairs[0].key)}" target="_blank" rel="noopener">${esc(L.name)}</a> <span class="why">— ${esc(reasons(L))}</span></li>`).join('');
+  document.getElementById('br3').onchange = e => { state.br3 = e.target.checked; save(); render(); };
+  document.getElementById('showOver').onchange = e => { state.showOver = e.target.checked; save(); render(); };
+})();
+render();
+</script>

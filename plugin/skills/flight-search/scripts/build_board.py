@@ -109,6 +109,8 @@ SORT_JS = """<script>
     var raw;
     if (active === "fare") {
       raw = row.getAttribute("data-fare");
+    } else if (active === "time") {
+      raw = row.getAttribute("data-time");
     } else {
       var world = (box && !box.checked) ? "no_hotels" : "hotels";
       raw = row.getAttribute("data-door-" + world)
@@ -300,6 +302,59 @@ def _hm(minutes):
     if not minutes:
         return "not determined"
     return f"{int(minutes) // 60}h {int(minutes) % 60:02d}m"
+
+
+def _hours_span(hours):
+    """`4h30` — an hours figure the reader can check against a timetable."""
+    minutes = int(round(float(hours) * 60))
+    whole, rest = divmod(minutes, 60)
+    return f"{whole}h{rest:02d}" if rest else f"{whole}h"
+
+
+def _ground_tail(trip, params):
+    """What the duration column leaves out, and why the trip is longer.
+
+    The flight duration is a fact about the aircraft. It says nothing about
+    the journey to Frankfurt, nothing about the bed near Amsterdam the
+    night before a flight no train can reach, and it quietly swallows a
+    sixteen hour night in Lisbon inside one big number. All three are why a
+    12h flight is a 30h trip, so all three are named here beside it.
+
+    Each piece is named separately and never summed. One number covering
+    the journey and check-in together reads as a journey figure and is
+    wrong by hours: Munich's four and a half hour train plus two and a half
+    hours of check-in showed as "+8h train", which is not a train time
+    anybody can check against a timetable.
+
+    The journey figure is `hours` from the params ground table, front door
+    to terminal, so it carries the walk to the station and the transfer at
+    the far end as well as the train. An origin with no `ground` entry has
+    nothing to report and says nothing rather than implying there is
+    nothing to report.
+    """
+    ground = (params.get("ground") or {}).get(trip.get("origin")) or {}
+    bits = []
+    hours = ground.get("hours")
+    if hours:
+        where = ("to the terminal" if ground.get("home")
+                 else f"door to {esc(str(trip.get('origin')))}")
+        bits.append(f"+{_hours_span(hours)} {where}")
+    check_in = ((params.get("ground_timing") or {}).get("check_in_hours"))
+    if check_in and trip.get("total_duration_min"):
+        bits.append(f"+{_hours_span(check_in)} check-in")
+    if trip.get("out_overnight"):
+        bits.append("+ night before")
+    for window in trip.get("layover_windows") or ():
+        if not window.get("night_flag"):
+            continue
+        minutes = window.get("minutes") or 0
+        if minutes < 6 * 60:
+            continue
+        bits.append(f"incl. {round(minutes / 60)}h night "
+                    f"{window.get('code') or 'in transit'}")
+    if not bits:
+        return ""
+    return f'<span class="dur-tail">{" &middot; ".join(bits)}</span>'
 
 
 def _nights_later(start, end):
@@ -1106,6 +1161,12 @@ def _sort_keys(trip, worlds):
     """
     price = trip.get("price_eur")
     out = "" if price is None else f' data-fare="{price:g}"'
+    # Time is one number in both worlds: a forced night is spent whoever
+    # paid for the bed, so this key is not per world the way the door
+    # figure is.
+    door_min = trip.get("out_door_min")
+    if door_min:
+        out += f' data-time="{int(door_min):d}"'
     for name in worlds:
         low, _high = _band(trip, name)
         if low is not None:
@@ -1135,7 +1196,7 @@ def _swap_cells(trip, worlds, render_one):
     return "".join(render_one(trip, name) for name in worlds)
 
 
-def _board_section(trips, colors, domain, dest):
+def _board_section(trips, colors, domain, dest, params):
     worlds = _worlds(trips) or [DEFAULT_VARIANT]
     rows = []
     for trip in _sorted_trips(trips):
@@ -1178,7 +1239,9 @@ def _board_section(trips, colors, domain, dest):
                                        trip.get("ret_arr_date")),
                          "times not opened")
             + f'<td>{esc(_stops(trip.get("stops")))}</td>'
-            + f'<td class="num">{esc(_hm(trip.get("total_duration_min")))}</td>'
+            + f'<td class="num">{esc(_hm(trip.get("total_duration_min")))}'
+              f'{_ground_tail(trip, params)}</td>'
+            + f'<td class="num">{esc(_hm(trip.get("out_door_min")))}</td>'
             + f'<td>{_carrier_chips(trip, colors)}</td>'
             + night_cell
             + f'<td>{_layover_chips(trip)}</td>'
@@ -1210,7 +1273,8 @@ def _board_section(trips, colors, domain, dest):
         '<th scope="col">Lands back at</th>'
         '<th scope="col">Out</th><th scope="col">Back</th>'
         '<th scope="col">Stops</th><th scope="col">Duration</th>'
-        '<th scope="col">Carriers</th><th scope="col">Night</th>'
+        + _sort_head("Total time", "time")
+        + '<th scope="col">Carriers</th><th scope="col">Night</th>'
         '<th scope="col">Layovers</th><th scope="col">Link</th>'
         "</tr></thead><tbody>" + "".join(rows) + "</tbody></table>")
     return _section(
@@ -1223,7 +1287,17 @@ def _board_section(trips, colors, domain, dest):
         "fare is what the trip "
         "costs from your front door: the fare plus the train at both ends, "
         "plus a night near the airport where the flight is too early to "
-        "reach on the day, which is marked +bed. A night layover does not "
+        "reach on the day, which is marked +bed. The duration column is the "
+        "flight, and under it is what the flight leaves out, each piece named "
+        "separately and never summed: door to FRA is your front door to "
+        "that terminal, the train plus the walk at either end; check-in "
+        "is the same everywhere; + night before appears where no train "
+        "gets you there in time; and incl. Nh night is the itinerary "
+        "parking you at a stop overnight. Total time is those pieces and "
+        "the flight added up: your front door to the moment you land at "
+        "GRU, timezones included, and it reorders the board like the "
+        "money columns do. It is the outbound only, because no return "
+        "leg was opened. A night layover does not "
         "disqualify a fare, it obliges it to be considerably cheaper; the "
         "night column says whether it is, or says that nobody checked.",
         legend_block + _scroller(table, " scroller--board"),
@@ -2050,6 +2124,9 @@ table { border-collapse: separate; border-spacing: 0; width: 100%; }
 }
 .when-arrow { margin: 0 4px; opacity: 0.55; }
 .when-plus { font-size: 0.8em; margin-left: 1px; }
+.dur-tail { display: block; margin-top: 2px; font-size: 0.7rem;
+  line-height: 1.25; color: var(--muted); font-variant-numeric: normal;
+  white-space: normal; }
 .when-nd { opacity: 0.75; }
 .b-price { padding-left: 12px; }
 .chip {
@@ -2240,7 +2317,7 @@ def render(trips, params, coverage=None):
         _airport_section(trips, origins, rets, domain,
                          params.get("open_jaw", True) is not False),
         _candidate_section(trips, params, colors, notes, dest),
-        _board_section(trips, colors, domain, dest),
+        _board_section(trips, colors, domain, dest, params),
         _caveats_section(trips, params, origins, coverage),
         "</main>",
         SWITCH_JS,
